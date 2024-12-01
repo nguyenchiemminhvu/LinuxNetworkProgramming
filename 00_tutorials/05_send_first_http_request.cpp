@@ -17,7 +17,7 @@ int main()
         return -1;
     }
 
-    servent* p_service = getservbyname("http", "tcp");
+    servent* p_service = getservbyname("http", sock_proto->p_name);
     if (p_service == NULL)
     {
         fprintf(stderr, "Error: HTTP service is not available\n");
