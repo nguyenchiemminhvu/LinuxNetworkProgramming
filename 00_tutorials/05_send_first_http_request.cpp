@@ -10,14 +10,14 @@ const char* CPP_HOSTNAME = "cppinstitute.org";
 
 int main()
 {
-    protoent* sock_proto = getprotobyname("tcp");
-    if (sock_proto == NULL)
+    protoent* p_proto = getprotobyname("tcp");
+    if (p_proto == NULL)
     {
         fprintf(stderr, "Error: TCP protocol is not available\n");
         return -1;
     }
 
-    servent* p_service = getservbyname("http", sock_proto->p_name);
+    servent* p_service = getservbyname("http", p_proto->p_name);
     if (p_service == NULL)
     {
         fprintf(stderr, "Error: HTTP service is not available\n");
@@ -29,7 +29,7 @@ int main()
     addrinfo hints;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
-    hints.ai_protocol = sock_proto->p_proto;
+    hints.ai_protocol = p_proto->p_proto;
     hints.ai_socktype = SOCK_STREAM;
 
     addrinfo* res;
@@ -41,9 +41,8 @@ int main()
     }
 
     sockaddr server_addr = *(res->ai_addr);
-    freeaddrinfo(res);
 
-    int sock_fd = socket(hints.ai_family, hints.ai_socktype, sock_proto->p_proto);
+    int sock_fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
     if (sock_fd < 0)
     {
         fprintf(stderr, "Error: socket() failed\n");
@@ -76,6 +75,7 @@ int main()
     }
 
     close(sock_fd);
+    freeaddrinfo(res);
 
     return 0;
 }
