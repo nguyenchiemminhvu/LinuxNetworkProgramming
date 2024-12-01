@@ -3,34 +3,52 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include <sys/ioctl.h>
 #include <netdb.h>
 
 const char* CPP_HOSTNAME = "cppinstitute.org";
 
 int main()
 {
-    int sock_fd = socket(AF_INET, SOCK_STREAM, getprotobyname("tcp")->p_proto);
-    if (sock_fd < 0)
+    protoent* sock_proto = getprotobyname("tcp");
+    if (sock_proto == NULL)
     {
-        fprintf(stderr, "Error: socket() failed\n");
+        fprintf(stderr, "Error: TCP protocol is not available\n");
         return -1;
     }
+
+    servent* p_service = getservbyname("http", "tcp");
+    if (p_service == NULL)
+    {
+        fprintf(stderr, "Error: HTTP service is not available\n");
+        return -1;
+    }
+    char port_str[6] = {'\0', };
+    sprintf(port_str, "%d", ntohs(p_service->s_port));
 
     addrinfo hints;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
+    hints.ai_protocol = sock_proto->p_proto;
     hints.ai_socktype = SOCK_STREAM;
 
     addrinfo* res;
-    int rc = getaddrinfo(CPP_HOSTNAME, "80", &hints, &res);
+    int rc = getaddrinfo(CPP_HOSTNAME, port_str, &hints, &res);
     if (rc != 0)
     {
-        fprintf(stderr, "Error: resolve hostname failed\n");
+        fprintf(stderr, "Error: Can not resolve hostname %s\n", CPP_HOSTNAME);
         return -1;
     }
 
     sockaddr server_addr = *(res->ai_addr);
     freeaddrinfo(res);
+
+    int sock_fd = socket(hints.ai_family, hints.ai_socktype, sock_proto->p_proto);
+    if (sock_fd < 0)
+    {
+        fprintf(stderr, "Error: socket() failed\n");
+        return -1;
+    }
 
     rc = connect(sock_fd, &server_addr, sizeof(server_addr));
     if (rc != 0)
@@ -49,6 +67,7 @@ int main()
         if (rc < 0)
         {
             fprintf(stderr, "Error: send() failed\n");
+            close(sock_fd);
             return -1;
         }
 
