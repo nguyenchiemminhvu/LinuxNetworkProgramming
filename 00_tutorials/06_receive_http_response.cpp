@@ -6,14 +6,14 @@
 #include <netdb.h>
 #include <sys/socket.h>
 
+const char* CPP_HOSTNAME = "cppinstitute.org";
+const int MESSAGE_SIZE = 1024;
+
 void on_func_failure(const char* message)
 {
     fprintf(stderr, "Error: %s\n", message);
     exit(EXIT_FAILURE);
 }
-
-const char* CPP_HOSTNAME = "cppinstitute.org";
-const int MESSAGE_SIZE = 1024;
 
 int main()
 {
@@ -49,12 +49,14 @@ int main()
     int sock_fd = socket(server_addr->ai_family, server_addr->ai_socktype, server_addr->ai_protocol);
     if (sock_fd < 0)
     {
+        freeaddrinfo(server_addr);
         on_func_failure("socket() failed");
     }
 
     rc = connect(sock_fd, server_addr->ai_addr, sizeof(sockaddr));
     if (rc != 0)
     {
+        freeaddrinfo(server_addr);
         on_func_failure("connect() failed");
     }
 
@@ -69,6 +71,8 @@ int main()
         int sent_rc = send(sock_fd, http_request + sent_bytes, http_request_len - sent_bytes, 0);
         if (sent_rc < 0)
         {
+            close(sock_fd);
+            freeaddrinfo(server_addr);
             on_func_failure("send() failed");
         }
         printf("sent %d bytes\n", sent_rc);
@@ -92,10 +96,15 @@ int main()
 
     if (received_bytes <= 0)
     {
+        close(sock_fd);
+        freeaddrinfo(server_addr);
         on_func_failure("recv() failed");
     }
 
     printf("HTTP Response:\n%s\n", http_response);
+
+    close(sock_fd);
+    freeaddrinfo(server_addr);
 
     return 0;
 }
