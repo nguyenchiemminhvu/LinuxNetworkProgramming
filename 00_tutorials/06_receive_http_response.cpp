@@ -87,6 +87,12 @@ int main()
         }
 
         printf("Received %d bytes\n", received_rc);
+        received_bytes += received_rc;
+    }
+
+    if (received_bytes <= 0)
+    {
+        on_func_failure("recv() failed");
     }
 
     printf("HTTP Response:\n%s\n", http_response);
