@@ -238,9 +238,9 @@ void run_client()
     for (addrinfo* p_server = addr_server; p_server != NULL; p_server = p_server->ai_next)
     {
         rc = connect(sock_client, p_server->ai_addr, p_server->ai_addrlen);
-        if (rc != 0)
+        if (rc == 0)
         {
-            continue;
+            break;
         }
     }
 
