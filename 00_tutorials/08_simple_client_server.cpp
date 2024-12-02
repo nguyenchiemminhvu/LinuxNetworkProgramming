@@ -59,6 +59,13 @@ void run_server()
         return;
     }
 
+    int sock_server_opt = 1;
+    rc = setsockopt(sock_server, SOL_SOCKET, SO_REUSEADDR | SO_KEEPALIVE, &sock_server_opt, sizeof(sock_server_opt));
+    if (rc < 0)
+    {
+        report_error("Server setsockopt() failed");
+    }
+
     for (addrinfo* p_server = addr_server; p_server != NULL; p_server = p_server->ai_next)
     {
         rc = bind(sock_server, p_server->ai_addr, p_server->ai_addrlen);
