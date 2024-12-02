@@ -1,5 +1,6 @@
 #include <unistd.h>
 #include <stdio.h>
+#include <time.h>
 #include <string.h>
 #include <stdlib.h>
 #include <arpa/inet.h>
@@ -51,7 +52,7 @@ void run_server()
     }
 
     int sock_server = socket(addr_server->ai_family, addr_server->ai_socktype, addr_server->ai_protocol);
-    if (socket < 0)
+    if (sock_server < 0)
     {
         report_error("Server socket() failed");
         freeaddrinfo(addr_server);
@@ -60,7 +61,7 @@ void run_server()
 
     for (addrinfo* p_server = addr_server; p_server != NULL; p_server = p_server->ai_next)
     {
-        rc = bind(sock_server, p_server->ai_addr, sizeof(sockaddr));
+        rc = bind(sock_server, p_server->ai_addr, p_server->ai_addrlen);
         if (rc == 0)
         {
             break;
@@ -75,7 +76,7 @@ void run_server()
         return;
     }
 
-    rc = listen(sock_server, 1);
+    rc = listen(sock_server, 3);
     if (rc < 0)
     {
         report_error("Server listen() failed");
@@ -85,13 +86,14 @@ void run_server()
     }
 
     // server loop
+    int sock_client = -1;
     while (true)
     {
         printf("Server is ready to process new request\n");
         
         sockaddr_storage addr_client;
         socklen_t addr_len = sizeof(addr_client);
-        int sock_client = accept(sock_server, (sockaddr*)&addr_client, &addr_len);
+        sock_client = accept(sock_server, (sockaddr*)&addr_client, &addr_len);
         if (sock_client < 0)
         {
             printf("Server rejected a client connection\n");
@@ -100,7 +102,48 @@ void run_server()
 
         printf("Server accepted client connection %d\n", sock_client);
 
-        close(sock_client);
+        char request_buffer[MESSAGE_SIZE];
+        char response_buffer[MESSAGE_SIZE];
+        while (true)
+        {
+            memset(request_buffer, 0, MESSAGE_SIZE);
+            int received_bytes = recv(sock_client, request_buffer, MESSAGE_SIZE, 0);
+            if (received_bytes <= 0)
+            {
+                report_error("Client is disconnected\n");
+                break;
+            }
+            request_buffer[received_bytes] = '\0';
+
+            printf("Received client request: %s\n", request_buffer);
+
+            memset(response_buffer, 0, MESSAGE_SIZE);
+
+            if (strcmp(request_buffer, "exit") == 0
+            || strcmp(request_buffer, "quit") == 0
+            || strcmp(request_buffer, "shutdown") == 0)
+            {
+                sprintf(response_buffer, "OK");
+                rc = send(sock_client, response_buffer, MESSAGE_SIZE, 0);
+                close(sock_client);
+                break;
+            }
+            else if (strcmp(request_buffer, "time") == 0)
+            {
+                sprintf(response_buffer, "%d", time(NULL));
+                rc = send(sock_client, response_buffer, MESSAGE_SIZE, 0);
+            }
+            else
+            {
+                sprintf(response_buffer, "Unknown request");
+                rc = send(sock_client, response_buffer, MESSAGE_SIZE, 0);
+            }
+
+            if (rc <= 0)
+            {
+                report_error("Server send() failed");
+            }
+        }
 
         sleep(1);
     }
@@ -148,7 +191,7 @@ void run_client()
 
     for (addrinfo* p_server = addr_server; p_server != NULL; p_server = p_server->ai_next)
     {
-        rc = connect(sock_client, p_server->ai_addr, sizeof(sockaddr));
+        rc = connect(sock_client, p_server->ai_addr, p_server->ai_addrlen);
         if (rc == 0)
         {
             break;
@@ -174,28 +217,12 @@ void run_client()
         fgets(request_buffer, MESSAGE_SIZE, stdin);
         printf("Request: %s\n", request_buffer);
 
-        struct stat sbuf;
-        rc = fstat(sock_client, &sbuf);
-        if (rc == -1)
-        {
-            report_error("Service is closed");
-            break;
-        }
+        // Remove newline character from the request buffer
+        request_buffer[strcspn(request_buffer, "\n")] = 0;
 
         int request_buffer_len = strlen(request_buffer);
-        int total_sent_bytes = 0;
-        while (total_sent_bytes < request_buffer_len)
-        {
-            int sent_bytes = send(sock_client, request_buffer + total_sent_bytes, request_buffer_len - total_sent_bytes, 0);
-            if (sent_bytes <= 0)
-            {
-                break;
-            }
-
-            total_sent_bytes += sent_bytes;
-        }
-
-        if (total_sent_bytes < request_buffer_len)
+        int sent_bytes = send(sock_client, request_buffer, request_buffer_len, 0);
+        if (sent_bytes <= 0)
         {
             report_error("Client sent request fail");
             continue;
@@ -203,15 +230,15 @@ void run_client()
 
         char response_buffer[MESSAGE_SIZE];
         memset(response_buffer, 0, MESSAGE_SIZE);
-        int total_received_bytes = 0;
-        int received_bytes = recv(sock_client, response_buffer + total_received_bytes, MESSAGE_SIZE - total_received_bytes, 0);
-        while (received_bytes > 0)
+        int received_bytes = recv(sock_client, response_buffer, MESSAGE_SIZE, 0);
+        if (received_bytes <= 0)
         {
-            total_received_bytes += received_bytes;
-            received_bytes = recv(sock_client, response_buffer + total_received_bytes, MESSAGE_SIZE - total_received_bytes, 0);
+            report_error("Client recv() failed");
         }
-
-        printf("Response: %s\n", response_buffer);
+        else
+        {
+            printf("Response: %s\n", response_buffer);
+        }
 
         if (strcmp(request_buffer, "exit") == 0
          || strcmp(request_buffer, "quit") == 0
