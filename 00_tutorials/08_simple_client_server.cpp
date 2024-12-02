@@ -98,18 +98,18 @@ void run_server()
     {
         printf("Server is ready to process new request\n");
         
-        sockaddr_storage addr_client;
+        sockaddr addr_client;
         socklen_t addr_len = sizeof(addr_client);
         sock_client = accept(sock_server, (sockaddr*)&addr_client, &addr_len);
         if (sock_client < 0)
         {
-            printf("Server rejected a client connection\n");
+            report_error("Server accept() failed");
             continue;
         }
 
         char client_host[NI_MAXHOST];
         char client_service[NI_MAXSERV];
-        rc = getnameinfo((sockaddr*)&addr_client, addr_len, client_host, sizeof(client_host), client_service, sizeof(client_service), NI_NUMERICHOST | NI_NUMERICSERV);
+        rc = getnameinfo(&addr_client, addr_len, client_host, sizeof(client_host), client_service, sizeof(client_service), NI_NUMERICHOST | NI_NUMERICSERV);
         if (rc == 0)
         {
             printf("Server accepted client connection %s:%s\n", client_host, client_service);
@@ -120,6 +120,8 @@ void run_server()
         while (true)
         {
             memset(request_buffer, 0, MESSAGE_SIZE);
+            memset(response_buffer, 0, MESSAGE_SIZE);
+
             int received_bytes = recv(sock_client, request_buffer, MESSAGE_SIZE, 0);
             if (received_bytes <= 0)
             {
@@ -129,8 +131,6 @@ void run_server()
             request_buffer[received_bytes] = '\0';
 
             printf("Received client request: %s\n", request_buffer);
-
-            memset(response_buffer, 0, MESSAGE_SIZE);
 
             if (strcmp(request_buffer, "exit") == 0
             || strcmp(request_buffer, "quit") == 0
