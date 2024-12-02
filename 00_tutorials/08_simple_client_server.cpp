@@ -5,6 +5,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 
 #define PROTOCOL "tcp"
 #define TCP_PORT 45123
@@ -25,12 +26,88 @@ void run_server()
 {
     int rc;
 
+    protoent* tcp_proto = getprotobyname(PROTOCOL);
+    if (tcp_proto == NULL)
+    {
+        report_error("TCP protocol is not supported");
+        return;
+    }
+
+    char server_port[6];
+    memset(server_port, 0, 6);
+    sprintf(server_port, "%d", htons(TCP_PORT));
+
+    addrinfo addr_hints;
+    memset(&addr_hints, 0, sizeof(addr_hints));
+    addr_hints.ai_family = AF_INET;
+    addr_hints.ai_socktype = SOCK_STREAM;
+    addr_hints.ai_protocol = tcp_proto->p_proto;
+    addrinfo* addr_server;
+    rc = getaddrinfo(HOST_NAME, server_port, &addr_hints, &addr_server);
+    if (rc != 0)
+    {
+        report_error("Can not resolve server hostname");
+        return;
+    }
+
+    int sock_server = socket(addr_server->ai_family, addr_server->ai_socktype, addr_server->ai_protocol);
+    if (socket < 0)
+    {
+        report_error("Server socket() failed");
+        freeaddrinfo(addr_server);
+        return;
+    }
+
+    for (addrinfo* p_server = addr_server; p_server != NULL; p_server = p_server->ai_next)
+    {
+        rc = bind(sock_server, p_server->ai_addr, sizeof(sockaddr));
+        if (rc == 0)
+        {
+            break;
+        }
+    }
+
+    if (rc != 0)
+    {
+        report_error("Server bind() failed");
+        close(sock_server);
+        freeaddrinfo(addr_server);
+        return;
+    }
+
+    rc = listen(sock_server, 1);
+    if (rc < 0)
+    {
+        report_error("Server listen() failed");
+        close(sock_server);
+        freeaddrinfo(addr_server);
+        return;
+    }
+
     // server loop
     while (true)
     {
         printf("Server is ready to process new request\n");
+        
+        sockaddr_storage addr_client;
+        socklen_t addr_len = sizeof(addr_client);
+        int sock_client = accept(sock_server, (sockaddr*)&addr_client, &addr_len);
+        if (sock_client < 0)
+        {
+            printf("Server rejected a client connection\n");
+            continue;
+        }
+
+        printf("Server accepted client connection %d\n", sock_client);
+
+        close(sock_client);
+
         sleep(1);
     }
+
+    close(sock_server);
+    freeaddrinfo(addr_server);
+    printf("Server exit with normal status\n");
 }
 
 void run_client()
@@ -65,13 +142,24 @@ void run_client()
     if (sock_client < 0)
     {
         report_error("client socket() failed");
+        freeaddrinfo(addr_server);
         return;
     }
 
-    rc = connect(sock_client, addr_server->ai_addr, sizeof(sockaddr));
+    for (addrinfo* p_server = addr_server; p_server != NULL; p_server = p_server->ai_next)
+    {
+        rc = connect(sock_client, p_server->ai_addr, sizeof(sockaddr));
+        if (rc == 0)
+        {
+            break;
+        }
+    }
+
     if (rc != 0)
     {
         report_error("client connect() failed");
+        close(sock_client);
+        freeaddrinfo(addr_server);
         return;
     }
 
@@ -85,6 +173,14 @@ void run_client()
         printf("Enter command: ");
         fgets(request_buffer, MESSAGE_SIZE, stdin);
         printf("Request: %s\n", request_buffer);
+
+        struct stat sbuf;
+        rc = fstat(sock_client, &sbuf);
+        if (rc == -1)
+        {
+            report_error("Service is closed");
+            break;
+        }
 
         int request_buffer_len = strlen(request_buffer);
         int total_sent_bytes = 0;
@@ -127,6 +223,8 @@ void run_client()
         sleep(1);
     }
 
+    close(sock_client);
+    freeaddrinfo(addr_server);
     printf("Client exit with normal status\n");
 }
 
