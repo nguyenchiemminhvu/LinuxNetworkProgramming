@@ -107,7 +107,13 @@ void run_server()
             continue;
         }
 
-        printf("Server accepted client connection %d\n", sock_client);
+        char client_host[NI_MAXHOST];
+        char client_service[NI_MAXSERV];
+        rc = getnameinfo((sockaddr*)&addr_client, addr_len, client_host, sizeof(client_host), client_service, sizeof(client_service), NI_NUMERICHOST | NI_NUMERICSERV);
+        if (rc == 0)
+        {
+            printf("Server accepted client connection %s:%s\n", client_host, client_service);
+        }
 
         char request_buffer[MESSAGE_SIZE];
         char response_buffer[MESSAGE_SIZE];
