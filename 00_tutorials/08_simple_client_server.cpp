@@ -44,7 +44,7 @@ void run_server()
     addr_hints.ai_socktype = SOCK_STREAM;
     addr_hints.ai_protocol = tcp_proto->p_proto;
     addrinfo* addr_server;
-    rc = getaddrinfo(INADDR_ANY, server_port, &addr_hints, &addr_server);
+    rc = getaddrinfo(NULL, server_port, &addr_hints, &addr_server);
     if (rc != 0)
     {
         report_error("Can not resolve server hostname");
