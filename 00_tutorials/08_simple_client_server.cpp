@@ -144,8 +144,6 @@ void run_server()
                 report_error("Server send() failed");
             }
         }
-
-        sleep(1);
     }
 
     close(sock_server);
@@ -246,8 +244,6 @@ void run_client()
         {
             break;
         }
-
-        sleep(1);
     }
 
     close(sock_client);
