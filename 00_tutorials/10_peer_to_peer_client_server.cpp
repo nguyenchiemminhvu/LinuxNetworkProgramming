@@ -162,6 +162,23 @@ void run_client()
         return;
     }
 
+    // Using sendto() function allows us to specify the destination address and port for each sending packet, no need prior connect() call.
+    // Using connect() with UDP socket is still useful sometimes, it is possible to use send() and recv() functions instead of sendto() and recvfrom() functions.
+    // for (addrinfo* p_server = addr_server; p_server != NULL; p_server = p_server->ai_next)
+    // {
+    //     rc = connect(sock_client, p_server->ai_addr, p_server->ai_addrlen);
+    //     if (rc == 0)
+    //     {
+    //         break;
+    //     }
+    // }
+
+    // if (rc != 0)
+    // {
+    //     report_error("Client connect() failed");
+    //     return;
+    // }
+
     printf("Client is ready to send requests\n");
 
     char request_buffer[MESSAGE_SIZE];
