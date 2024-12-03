@@ -177,7 +177,7 @@ void run_client()
 
     char server_port[6];
     memset(server_port, 0, 6);
-    sprintf(server_port, "%d", ntohs(TCP_PORT));
+    sprintf(server_port, "%d", htons(TCP_PORT));
 
     addrinfo addr_hints;
     memset(&addr_hints, 0, sizeof(addr_hints));
