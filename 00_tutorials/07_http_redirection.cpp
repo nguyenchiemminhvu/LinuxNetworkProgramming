@@ -118,6 +118,11 @@ int perform_http_request(const char* host_name, const char* path, char* response
 
     printf("HTTP received %d bytes\n\n", http_received_bytes);
 
+    if (response != NULL)
+    {
+        memcpy(response, http_response, http_received_bytes);
+    }
+
     if (strstr(http_response, "301 Moved Permanently") != NULL)
     {
         printf("HTTP is redirected\n\n");
@@ -135,11 +140,6 @@ int perform_http_request(const char* host_name, const char* path, char* response
                 return perform_http_request(new_http_host, "/", response, redirect_count + 1);
             }
         }
-    }
-
-    if (response != NULL)
-    {
-        memcpy(response, http_response, http_received_bytes);
     }
 
     freeaddrinfo(http_addr);
