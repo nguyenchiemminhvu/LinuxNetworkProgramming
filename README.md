@@ -21,9 +21,12 @@
   - [Simple TCP-Based Client-Server](#simple-tcp-based-client-server)
   - [Multithread TCP-Based Client-Server](#multithread-tcp-based-client-server)
   - [Simple UDP-Based Client-Server](#simple-udp-based-client-server)
-- [Secure Network Programming](#secure-network-programming)
-  - [Overview of TLS/SSL in Networking](#overview-of-tlsssl-in-networking)
-  - [Using OpenSSL library](#using-openssl-library)
+- [Networking Libraries](#networking-libraries)
+  - [Using libcurl](#using-libcurl)
+    - [Basic Curl](#basic-curl)
+    - [Curl Multiple Handle](#curl-multiple-handle)
+    - [Curl Multithreading](#curl-multithreading)
+  - [Secure Networking with OpenSSL](#secure-networking-with-openssl)
 - [Conclusion](#conclusion)
 
 
@@ -73,11 +76,17 @@
 
 ## Simple UDP-Based Client-Server
 
-# Secure Network Programming
+# Networking Libraries
 
-## Overview of TLS/SSL in Networking
+## Using libcurl
 
-## Using OpenSSL library
+### Basic Curl
+
+### Curl Multiple Handle
+
+### Curl Multithreading
+
+## Secure Networking with OpenSSL
 
 # Conclusion
 
