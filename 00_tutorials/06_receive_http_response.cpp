@@ -6,7 +6,7 @@
 #include <netdb.h>
 #include <sys/socket.h>
 
-const char* CPP_HOSTNAME = "cppinstitute.org";
+const char* CPP_HOSTNAME = "httpstat.us";
 const int MESSAGE_SIZE = 1024;
 
 void on_func_failure(const char* message)
@@ -62,7 +62,7 @@ int main()
 
     char http_request[MESSAGE_SIZE];
     memset(http_request, 0, MESSAGE_SIZE);
-    sprintf(http_request, "GET / HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n", CPP_HOSTNAME);
+    sprintf(http_request, "GET /200 HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n", CPP_HOSTNAME);
     
     int http_request_len = strlen(http_request);
     int sent_bytes = 0;

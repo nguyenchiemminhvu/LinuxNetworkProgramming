@@ -19,6 +19,18 @@
 - [Programming Client-Server Models](#programming-client-server-models)
   - [Client-Server Architecture](#client-server-architecture)
   - [Simple HTTP Client](#simple-http-client)
+    - [Include necessary headers](#include-necessary-headers)
+    - [Define some constants](#define-some-constants)
+    - [Define Helper functions](#define-helper-functions)
+    - [Get TCP Protocol](#get-tcp-protocol)
+    - [Get Port of HTTP service](#get-port-of-http-service)
+    - [Convert Port to Network Byte Order](#convert-port-to-network-byte-order)
+    - [Resolve Host Name](#resolve-host-name)
+    - [Create A Socket](#create-a-socket)
+    - [Connect to HTTP server](#connect-to-http-server)
+    - [Send HTTP Request](#send-http-request)
+    - [Receive HTTP Response](#receive-http-response)
+    - [Clean Up](#clean-up)
   - [Simple TCP-Based Client-Server](#simple-tcp-based-client-server)
   - [Multithread TCP-Based Client-Server](#multithread-tcp-based-client-server)
   - [Simple UDP-Based Client-Server](#simple-udp-based-client-server)
@@ -471,13 +483,261 @@ The client-server model is a way of organizing networked computers where one com
 
 ## Simple HTTP Client
 
+Here are our goals:
+
+- we want to write a program which gets the address of a WWW site (e.g. httpstat.us) as the argument and fetches the document.
+- the program outputs the document to stdout;
+- the program uses TCP to connect to the HTTP server.
+
+Click [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/07_http_redirection.cpp) for a complete source code.
+
 ![HTTP Connection](https://raw.githubusercontent.com/nguyenchiemminhvu/LinuxNetworkProgramming/refs/heads/main/http_connection.png)
 
-```
+### Include necessary headers
 
 ```
+#include <unistd.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <arpa/inet.h>
+```
+
+```unistd.h```: Provides access to the POSIX operating system API, including file descriptors and the close() function.
+
+```stdio.h```: Standard I/O library for input/output operations (e.g., printf, fprintf).
+
+```stdlib.h```: Standard library for memory management (malloc, free) and program control (exit).
+
+```string.h```: Provides string manipulation functions like memset, strlen, etc.
+
+```arpa/inet.h```: Functions for manipulating IP addresses, such as ntohs and inet_ntoa.
+
+```netdb.h```: Functions for network database operations, such as getaddrinfo, getprotobyname, and getservbyname.
+
+```sys/socket.h```: Defines socket-related functions like socket, connect, send, and recv.
+
+### Define some constants
+
+```
+const char* CPP_HOSTNAME = "httpstat.us";
+const int MESSAGE_SIZE = 1024;
+```
+
+```CPP_HOSTNAME```: The hostname of the remote server the program will connect to.
+
+```MESSAGE_SIZE```: The size of the buffer used for sending and receiving data (1 KB in this case).
+
+### Define Helper functions
+
+```
+void on_func_failure(const char* message)
+{
+    fprintf(stderr, "Error: %s\n", message);
+    exit(EXIT_FAILURE);
+}
+```
+
+A helper function to handle errors. When a function fails, this function is called with an error message.
+
+```fprintf(stderr, ...)```: Prints the error message to the standard error output.
+
+```exit(EXIT_FAILURE)```: Terminates the program with a failure status code.
+
+### Get TCP Protocol
+
+```
+protoent* p_proto_ent = getprotobyname("tcp");
+if (p_proto_ent == NULL)
+{
+    on_func_failure("TCP protocol is not available");
+}
+```
+
+```getprotobyname("tcp")```: Retrieves the protocol entry for "tcp" (Transmission Control Protocol). The function returns a protoent structure that contains protocol information.
+
+If it returns NULL, the program exits using ```on_func_failure``` because TCP is required for the connection.
+
+### Get Port of HTTP service
+
+```
+servent* p_service_ent = getservbyname("http", p_proto_ent->p_name);
+if (p_service_ent == NULL)
+{
+    on_func_failure("HTTP service is not available");
+}
+```
+
+```getservbyname("http", p_proto_ent->p_name)```: Retrieves information about the "http" service, including the port number (usually 80 for HTTP).
+
+If getservbyname fails, the program exits. This function ensures the port number for HTTP is available.
+
+### Convert Port to Network Byte Order
+
+```
+char port_buffer[6];
+memset(port_buffer, 0, sizeof(port_buffer));
+sprintf(port_buffer, "%d", ntohs(p_service_ent->s_port));
+```
+
+Port Conversion: The port number from ```getservbyname``` is in network byte order (big-endian). ```ntohs``` converts it to host byte order (little-endian, on most systems).
+
+```sprintf```: Converts the port number to a string (stored in port_buffer), which is required by getaddrinfo.
+
+### Resolve Host Name
+
+```
+addrinfo hints;
+memset(&hints, 0, sizeof(hints));
+hints.ai_family = AF_INET;
+hints.ai_protocol = p_proto_ent->p_proto;
+hints.ai_socktype = SOCK_STREAM;
+
+addrinfo* server_addr;
+int rc = getaddrinfo(CPP_HOSTNAME, port_buffer, &hints, &server_addr);
+if (rc != 0)
+{
+    on_func_failure("Failed to resolve hostname");
+}
+```
+
+```addrinfo```: A structure that holds information for socket creation.
+
+```ai_family = AF_INET```: Specifies IPv4 addresses.
+
+```ai_socktype = SOCK_STREAM```: Specifies a TCP connection.
+
+```ai_protocol = p_proto_ent->p_proto```: Ensures the protocol is TCP.
+
+```getaddrinfo```: Resolves the hostname (cppinstitute.org) and port (80) into an address that can be used for connecting.
+
+If getaddrinfo fails, the program exits.
+
+### Create A Socket
+
+```
+int sock_fd = socket(server_addr->ai_family, server_addr->ai_socktype, server_addr->ai_protocol);
+if (sock_fd < 0)
+{
+    freeaddrinfo(server_addr);
+    on_func_failure("socket() failed");
+}
+```
+
+```socket()```: Creates a new socket for communication.
+
+The arguments specify the address family, socket type, and protocol (IPv4, TCP).
+
+If the socket creation fails, the program exits.
+
+### Connect to HTTP server
+
+```
+rc = connect(sock_fd, server_addr->ai_addr, sizeof(sockaddr));
+if (rc != 0)
+{
+    freeaddrinfo(server_addr);
+    on_func_failure("connect() failed");
+}
+```
+
+```connect()```: Initiates a connection to the remote server using the socket.
+
+If connect fails, the program cleans up allocated resources and exits.
+
+### Send HTTP Request
+
+```
+char http_request[MESSAGE_SIZE];
+memset(http_request, 0, MESSAGE_SIZE);
+sprintf(http_request, "GET / HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n", CPP_HOSTNAME);
+
+int http_request_len = strlen(http_request);
+int sent_bytes = 0;
+while (sent_bytes < http_request_len)
+{
+    int sent_rc = send(sock_fd, http_request + sent_bytes, http_request_len - sent_bytes, 0);
+    if (sent_rc < 0)
+    {
+        close(sock_fd);
+        freeaddrinfo(server_addr);
+        on_func_failure("send() failed");
+    }
+    printf("sent %d bytes\n", sent_rc);
+    sent_bytes += sent_rc;
+}
+```
+
+A conversation with the HTTP server consists of requests (sent by the client) and responses (sent by the server).
+
+To get a root document from a site named www.site.com, the client should send the request to the server:
+
+```
+GET / HTTP / 1.1 \ r \ n Host: www.site.com \ r \ n Connection:close \ r \ n \ r \ n
+```
+
+The request consists of:
+
+- a line containing a request name (```GET```) followed by the name of the resource the client wants to receive; the root documents is specified as a single slash (```/```); the line must also include the HTTP protocol version (```HTTP/1.1```), and must end with the ```\r\n``` characters; note: all the lines must be ended in the same way;
+- a line containing the name of the site (```www.site.com```) preceded by the parameter name (Host:)
+- a line containing the parameter named Connection: along with its value, close forces the server to close the connection after the first request is served; it will simplify our client’s code;
+- an empty line is the request’s terminator.
+
+If the request is correct, the server’s response will begin with a more or less similar header.
+
+```
+HTTP/1.1 200 OK
+Content-Type: text/plain
+Date: Thu, 05 Dec 2024 07:07:58 GMT
+Server: Kestrel
+Set-Cookie: ARRAffinity=b3b03edd65273a52d0e5a4a4995ddf09acfbb7f67adccaf277d300c0a375ea34;Path=/;HttpOnly;Domain=httpstat.us
+Request-Context: appId=cid-v1:3548b0f5-7f75-492f-82bb-b6eb0e864e53
+X-RBT-CLI: Name=LGEVN-Hanoi-ACC-5080M-A; Ver=9.14.2b;
+Connection: close
+Content-Length: 6
+
+200 OK
+```
+
+### Receive HTTP Response
+
+```
+char http_response[MESSAGE_SIZE];
+memset(http_response, 0, MESSAGE_SIZE);
+int received_bytes = 0;
+while (1 == 1)
+{
+    int received_rc = recv(sock_fd, http_response + received_bytes, MESSAGE_SIZE - received_bytes, 0);
+    if (received_rc <= 0)
+    {
+        break;
+    }
+
+    printf("Received %d bytes\n", received_rc);
+    received_bytes += received_rc;
+}
+```
+
+```recv()```: Receives the server's response in chunks and appends it to the http_response buffer.
+
+When ```recv()``` returns 0 or a negative value, it indicates the server has closed the connection or an error occurred.
+
+### Clean Up
+
+```
+close(sock_fd);
+freeaddrinfo(server_addr);
+```
+
+```close()```: Closes the socket, releasing system resources.
+
+```freeaddrinfo()```: Frees the memory allocated by getaddrinfo.
 
 ## Simple TCP-Based Client-Server
+
+Click [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/08_simple_client_server.cpp) for a complete source code.
 
 ![TCP-Based Client-Server](https://raw.githubusercontent.com/nguyenchiemminhvu/LinuxNetworkProgramming/refs/heads/main/tcp_based_client_server.png)
 
@@ -487,11 +747,15 @@ The client-server model is a way of organizing networked computers where one com
 
 ## Multithread TCP-Based Client-Server
 
+Click [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/09_multithread_client_server.cpp) for a complete source code.
+
 ```
 
 ```
 
 ## Simple UDP-Based Client-Server
+
+Click [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/10_peer_to_peer_client_server.cpp) for a complete source code.
 
 ![UDP-Based Client-Server](https://raw.githubusercontent.com/nguyenchiemminhvu/LinuxNetworkProgramming/refs/heads/main/udp_based_client_server.png)
 

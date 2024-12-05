@@ -5,7 +5,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
-const char* CPP_HOSTNAME = "cppinstitute.org";
+const char* CPP_HOSTNAME = "httpstat.us";
 
 int main()
 {

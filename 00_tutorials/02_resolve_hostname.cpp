@@ -7,7 +7,7 @@
 
 int main()
 {
-    const char* CPP_HOSTNAME = "cppinstitute.org";
+    const char* CPP_HOSTNAME = "httpstat.us";
 
     hostent* host_info = gethostbyname(CPP_HOSTNAME);
     if (host_info == NULL)

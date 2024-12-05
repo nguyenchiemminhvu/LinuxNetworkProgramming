@@ -6,7 +6,7 @@
 #include <sys/ioctl.h>
 #include <netdb.h>
 
-const char* CPP_HOSTNAME = "cppinstitute.org";
+const char* CPP_HOSTNAME = "httpstat.us";
 
 int main()
 {
