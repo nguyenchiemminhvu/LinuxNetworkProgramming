@@ -212,9 +212,25 @@ printf("Network byte order: 0x%x\n", net_port);
 
 **Description**: These functions convert values between host and network byte order. ```htonl()``` and ```htons()``` convert from host to network byte order, while ```ntohl()``` and ```ntohs()``` convert from network to host byte order.
 
+```htons(uint16_t hostshort)```: Converts a 16-bit number from host byte order to network byte order.
+
+```htonl(uint32_t hostlong)```: Converts a 32-bit number from host byte order to network byte order.
+
+```ntohs(uint16_t netshort)```: Converts a 16-bit number from network byte order to host byte order.
+
+```ntohl(uint32_t netlong)```: Converts a 32-bit number from network byte order to host byte order.
+
 **What is Network Byte Order?**
 
+Network byte order is a standardized way of arranging the bytes of multi-byte data types (like integers) in network communication. Different CPU architecture may process data in different orders, we called it **"endianness"**.
 
+> Big-endian (BE): Stores the most significant byte (the “big end”) first. This means that the first byte (at the lowest memory address) is the largest, which makes the most sense to people who read left to right
+ 
+> Little-endian (LE): Stores the least significant byte (the “little end”) first. This means that the first byte (at the lowest memory address) is the smallest, which makes the most sense to people who read right to left.
+
+Data transferred in network is always Big-endian order.
+
+Data sending from host machine is called Host-byte order, could be big or little endian. Using the functions above ensure proper communication between systems.
 
 ### socket()
 
@@ -455,7 +471,7 @@ The client-server model is a way of organizing networked computers where one com
 
 ## Simple HTTP Client
 
-![HTTP Connection](http_connection.png)
+![HTTP Connection](https://raw.githubusercontent.com/nguyenchiemminhvu/LinuxNetworkProgramming/refs/heads/main/http_connection.png)
 
 ```
 
@@ -463,7 +479,7 @@ The client-server model is a way of organizing networked computers where one com
 
 ## Simple TCP-Based Client-Server
 
-![TCP-Based Client-Server](tcp_based_client_server.png)
+![TCP-Based Client-Server](https://raw.githubusercontent.com/nguyenchiemminhvu/LinuxNetworkProgramming/refs/heads/main/tcp_based_client_server.png)
 
 ```
 
@@ -477,7 +493,7 @@ The client-server model is a way of organizing networked computers where one com
 
 ## Simple UDP-Based Client-Server
 
-![UDP-Based Client-Server](udp_based_client_server.png)
+![UDP-Based Client-Server](https://raw.githubusercontent.com/nguyenchiemminhvu/LinuxNetworkProgramming/refs/heads/main/udp_based_client_server.png)
 
 ```
 
@@ -497,3 +513,12 @@ The client-server model is a way of organizing networked computers where one com
 
 # Conclusion
 
+**Reference**:
+
+https://www.linuxhowtos.org/C_C++/socket.htm
+
+https://www.tutorialspoint.com/unix_sockets/index.htm
+
+https://documentation.softwareag.com/adabas/wcp632mfr/wtc/wtc_prot.htm
+
+https://www.geeksforgeeks.org/little-and-big-endian-mystery/
