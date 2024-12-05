@@ -32,7 +32,7 @@
     - [Receive HTTP Response](#receive-http-response)
     - [Clean Up](#clean-up)
   - [Simple TCP-Based Client-Server](#simple-tcp-based-client-server)
-    - [Common Headers And Macros](#common-headers-and-macros)
+    - [Necessary Headers And Macros](#necessary-headers-and-macros)
     - [Utility Functions](#utility-functions)
     - [Setup Server](#setup-server)
     - [Setup Client](#setup-client)
@@ -40,6 +40,13 @@
   - [Multithread TCP-Based Client-Server](#multithread-tcp-based-client-server)
     - [Setup Server with multithreading](#setup-server-with-multithreading)
   - [Simple UDP-Based Client-Server](#simple-udp-based-client-server)
+    - [Necessary Headers And Macros](#necessary-headers-and-macros-1)
+    - [Setup Server](#setup-server-1)
+    - [Setup Client](#setup-client-1)
+  - [Advanced Techniques](#advanced-techniques)
+    - [Non-blocking sockets](#non-blocking-sockets)
+    - [Synchronous I/O Multiplexing with select()](#synchronous-io-multiplexing-with-select)
+    - [Synchronous I/O Multiplexing with poll()](#synchronous-io-multiplexing-with-poll)
 - [Networking Libraries](#networking-libraries)
   - [Using libcurl](#using-libcurl)
     - [Basic Curl](#basic-curl)
@@ -665,12 +672,6 @@ int sent_bytes = 0;
 while (sent_bytes < http_request_len)
 {
     int sent_rc = send(sock_fd, http_request + sent_bytes, http_request_len - sent_bytes, 0);
-    if (sent_rc < 0)
-    {
-        close(sock_fd);
-        freeaddrinfo(server_addr);
-        on_func_failure("send() failed");
-    }
     printf("sent %d bytes\n", sent_rc);
     sent_bytes += sent_rc;
 }
@@ -716,11 +717,6 @@ int received_bytes = 0;
 while (1 == 1)
 {
     int received_rc = recv(sock_fd, http_response + received_bytes, MESSAGE_SIZE - received_bytes, 0);
-    if (received_rc <= 0)
-    {
-        break;
-    }
-
     printf("Received %d bytes\n", received_rc);
     received_bytes += received_rc;
 }
@@ -747,7 +743,7 @@ Click [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/m
 
 ![TCP-Based Client-Server](https://raw.githubusercontent.com/nguyenchiemminhvu/LinuxNetworkProgramming/refs/heads/main/tcp_based_client_server.png)
 
-### Common Headers And Macros
+### Necessary Headers And Macros
 
 ```
 #include <unistd.h>
@@ -828,11 +824,6 @@ Prints error messages to stderr.
 
 ```
 protoent* tcp_proto = getprotobyname(PROTOCOL);
-if (tcp_proto == NULL)
-{
-    report_error("TCP protocol is not supported");
-    return;
-}
 ```
 
 Retrieves the protocol structure for the ```"tcp"``` protocol using ```getprotobyname()```.
@@ -850,11 +841,6 @@ addr_hints.ai_protocol = tcp_proto->p_proto;
 
 addrinfo* addr_server;
 rc = getaddrinfo(NULL, server_port, &addr_hints, &addr_server);
-if (rc != 0)
-{
-    report_error("Can not resolve server hostname");
-    return;
-}
 ```
 
 Converts the TCP port into network byte order using ```htons()```.
@@ -869,12 +855,6 @@ Resolves the server's address information using ```getaddrinfo()```.
 
 ```
 int sock_server = socket(addr_server->ai_family, addr_server->ai_socktype, addr_server->ai_protocol);
-if (sock_server < 0)
-{
-    report_error("Server socket() failed");
-    freeaddrinfo(addr_server);
-    return;
-}
 ```
 
 Creates a socket using the ```socket()``` function.
@@ -883,10 +863,6 @@ Creates a socket using the ```socket()``` function.
 ```
 int sock_server_opt = 1;
 rc = setsockopt(sock_server, SOL_SOCKET, SO_REUSEADDR | SO_KEEPALIVE, &sock_server_opt, sizeof(sock_server_opt));
-if (rc < 0)
-{
-    report_error("Server setsockopt() failed");
-}
 ```
 
 Configures socket options:
@@ -906,14 +882,6 @@ for (addrinfo* p_server = addr_server; p_server != NULL; p_server = p_server->ai
         break;
     }
 }
-
-if (rc != 0)
-{
-    report_error("Server bind() failed");
-    close(sock_server);
-    freeaddrinfo(addr_server);
-    return;
-}
 ```
 
 Binds the socket to the resolved address using ```bind()``` function.
@@ -922,13 +890,6 @@ Iterates over potential addresses (```addrinfo``` list) until successful.
 
 ```
 rc = listen(sock_server, 3);
-if (rc < 0)
-{
-    report_error("Server listen() failed");
-    close(sock_server);
-    freeaddrinfo(addr_server);
-    return;
-}
 ```
 
 Starts listening for incoming client connections with a backlog of 3.
@@ -939,11 +900,6 @@ Starts listening for incoming client connections with a backlog of 3.
 sockaddr addr_client;
 socklen_t addr_len = sizeof(addr_client);
 sock_client = accept(sock_server, (sockaddr*)&addr_client, &addr_len);
-if (sock_client < 0)
-{
-    report_error("Server accept() failed");
-    continue;
-}
 ```
 
 Accepts incoming client connections using ```accept()``` function.
@@ -952,11 +908,6 @@ Accepts incoming client connections using ```accept()``` function.
 
 ```
 int received_bytes = recv(sock_client, request_buffer, MESSAGE_SIZE, 0);
-if (received_bytes <= 0)
-{
-    report_error("Client is disconnected\n");
-    break;
-}
 ```
 
 Reads data from the client using ```recv()``` function.
@@ -999,11 +950,6 @@ Handles specific commands:
 
 ```
 protoent* tcp_proto = getprotobyname(PROTOCOL);
-if (tcp_proto == NULL)
-{
-    report_error("TCP protocol is not supported");
-    return;
-}
 
 addrinfo addr_hints;
 memset(&addr_hints, 0, sizeof(addr_hints));
@@ -1013,11 +959,6 @@ addr_hints.ai_protocol = tcp_proto->p_proto;
 
 addrinfo* addr_server;
 rc = getaddrinfo(HOST_NAME, server_port, &addr_hints, &addr_server);
-if (rc != 0)
-{
-    report_error("Failed to resolve hostname");
-    return;
-}
 ```
 
 Resolves the server's address.
@@ -1026,12 +967,6 @@ Resolves the server's address.
 
 ```
 int sock_client = socket(addr_server->ai_family, addr_server->ai_socktype, addr_server->ai_protocol);
-if (sock_client < 0)
-{
-    report_error("client socket() failed");
-    freeaddrinfo(addr_server);
-    return;
-}
 
 for (addrinfo* p_server = addr_server; p_server != NULL; p_server = p_server->ai_next)
 {
@@ -1040,14 +975,6 @@ for (addrinfo* p_server = addr_server; p_server != NULL; p_server = p_server->ai
     {
         break;
     }
-}
-
-if (rc != 0)
-{
-    report_error("client connect() failed");
-    close(sock_client);
-    freeaddrinfo(addr_server);
-    return;
 }
 ```
 
@@ -1100,17 +1027,8 @@ int* p_sock_client = (int*)calloc(1, sizeof(int));
 *p_sock_client = sock_client;
 pthread_t client_thread;
 rc = pthread_create(&client_thread, NULL, server_handle_client, p_sock_client);
-if (rc != 0)
-{
-    report_error("Server create thread for new client failed");
-    continue;
-}
 
 rc = pthread_detach(client_thread);
-if (rc != 0)
-{
-    report_error("Detach client thread failed");
-}
 ```
 
 **Thread Code for a client**
@@ -1155,9 +1073,107 @@ void* server_handle_client(void* arg)
 
 ## Simple UDP-Based Client-Server
 
+Overall, the setup for UDP-Based client server application is similar with TCP-Based. I will show the different codes only.
+
 Click [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/10_peer_to_peer_client_server.cpp) for a complete source code.
 
 ![UDP-Based Client-Server](https://raw.githubusercontent.com/nguyenchiemminhvu/LinuxNetworkProgramming/refs/heads/main/udp_based_client_server.png)
+
+### Necessary Headers And Macros
+
+```
+#define PROTOCOL "udp"
+#define UDP_PORT 45123
+#define MESSAGE_SIZE 1024
+#define HOST_NAME "localhost"
+```
+
+Similar as previous explanation, but now the protocol is **UDP**.
+
+### Setup Server
+
+**Resolve Server Address**
+
+```
+protoent* udp_protocol = getprotobyname(PROTOCOL);
+
+addrinfo hints;
+memset(&hints, 0, sizeof(hints));
+hints.ai_family = AF_INET;
+hints.ai_socktype = SOCK_DGRAM;
+hints.ai_protocol = udp_protocol->p_proto;
+addrinfo* addr_server;
+rc = getaddrinfo(NULL, port_server, &hints, &addr_server); // INADDR_ANY
+```
+
+Specifies the socket type datagram for UDP connection.
+
+**Server Loop - Listen client request and response**
+
+```
+while (true)
+{
+    sockaddr addr_client;
+    socklen_t addr_client_len = sizeof(sockaddr);
+    int received_bytes = recvfrom(sock_server, request_buffer, MESSAGE_SIZE, 0, &addr_client, &addr_client_len);
+
+    sprintf(response_buffer, "Server received request at %d", time(NULL));
+    int response_buffer_len = strlen(response_buffer);
+    rc = sendto(sock_server, response_buffer, response_buffer_len, 0, &addr_client, addr_client_len);
+}
+```
+
+The ```recvfrom()``` and ```sendto()``` functions are the general format of ```recv()``` and ```send()``` functions, they are suitable to use in UDP packet transferring.
+
+### Setup Client
+
+```
+protoent* udp_protocol = getprotobyname(PROTOCOL);
+
+addrinfo hints;
+memset(&hints, 0, sizeof(hints));
+hints.ai_family = AF_INET;
+hints.ai_socktype = SOCK_DGRAM;
+hints.ai_protocol = udp_protocol->p_proto;
+addrinfo* addr_server;
+rc = getaddrinfo(HOST_NAME, port_server, &hints, &addr_server);
+```
+
+Specifies the socket type datagram for UDP connection.
+
+**Client Loop - Send request and wait for response**
+
+```
+char request_buffer[MESSAGE_SIZE];
+char response_buffer[MESSAGE_SIZE];
+while (true)
+{
+    printf("Enter command: ");
+    fgets(request_buffer, MESSAGE_SIZE, stdin);
+    request_buffer[strcspn(request_buffer, "\r\n")] = '\0';
+
+    int request_buffer_len = strlen(request_buffer);
+    rc = sendto(sock_client, request_buffer, request_buffer_len, 0, addr_server->ai_addr, addr_server->ai_addrlen);
+
+    int received_bytes = recvfrom(sock_client, response_buffer, MESSAGE_SIZE, 0, addr_server->ai_addr, &addr_server->ai_addrlen);
+}
+```
+
+## Advanced Techniques
+
+### Non-blocking sockets
+
+```
+
+```
+
+### Synchronous I/O Multiplexing with select()
+
+```
+
+```
+
+### Synchronous I/O Multiplexing with poll()
 
 ```
 
