@@ -32,7 +32,13 @@
     - [Receive HTTP Response](#receive-http-response)
     - [Clean Up](#clean-up)
   - [Simple TCP-Based Client-Server](#simple-tcp-based-client-server)
+    - [Common Headers And Macros](#common-headers-and-macros)
+    - [Utility Functions](#utility-functions)
+    - [Setup Server](#setup-server)
+    - [Setup Client](#setup-client)
+    - [Main Function](#main-function)
   - [Multithread TCP-Based Client-Server](#multithread-tcp-based-client-server)
+    - [Setup Server with multithreading](#setup-server-with-multithreading)
   - [Simple UDP-Based Client-Server](#simple-udp-based-client-server)
 - [Networking Libraries](#networking-libraries)
   - [Using libcurl](#using-libcurl)
@@ -741,16 +747,410 @@ Click [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/m
 
 ![TCP-Based Client-Server](https://raw.githubusercontent.com/nguyenchiemminhvu/LinuxNetworkProgramming/refs/heads/main/tcp_based_client_server.png)
 
-```
+### Common Headers And Macros
 
 ```
+#include <unistd.h>
+#include <stdio.h>
+#include <time.h>
+#include <string.h>
+#include <stdlib.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+
+#define PROTOCOL "tcp"
+#define TCP_PORT 45123
+#define MESSAGE_SIZE 1024
+#define HOST_NAME "localhost"
+```
+
+**Headers:**
+
+```unistd.h```: Provides POSIX API functions, e.g., close.
+
+```stdio.h```: For input/output operations, e.g., printf, fprintf.
+
+```time.h```: To get the current time using time().
+
+```string.h```: For string operations, e.g., strcmp, memset.
+
+```stdlib.h```: For memory allocation and process control.
+
+```arpa/inet.h```: For socket-related functions and data structures.
+
+```netdb.h```: To resolve hostnames using getaddrinfo and gethostbyname.
+
+```sys/socket.h```: Core socket programming functions, e.g., socket, connect, bind.
+
+```sys/stat.h```: For file and directory operations.
+
+**Macros:**
+
+```PROTOCOL```: Defines the protocol as tcp.
+
+```TCP_PORT```: The port number the server and client use for communication.
+
+```MESSAGE_SIZE```: Maximum size for messages sent/received.
+
+```HOST_NAME```: Default hostname, set to localhost.
+
+### Utility Functions
+
+```
+void print_usage(const char *program_name)
+{
+    fprintf(stderr, "Usage: %s <client|server>\n", program_name);
+}
+```
+
+Prints a usage guide, showing how to execute the program. Example usage:
+
+```./program_name client```
+
+or
+
+```./program_name server.```
+
+```
+void report_error(const char* message)
+{
+    fprintf(stderr, "Error: %s\n", message);
+}
+```
+
+Prints error messages to stderr.
+
+### Setup Server
+
+**Choose protocol and resolve server address**
+
+```
+protoent* tcp_proto = getprotobyname(PROTOCOL);
+if (tcp_proto == NULL)
+{
+    report_error("TCP protocol is not supported");
+    return;
+}
+```
+
+Retrieves the protocol structure for the ```"tcp"``` protocol using ```getprotobyname()```.
+
+```
+char server_port[6];
+memset(server_port, 0, 6);
+sprintf(server_port, "%d", htons(TCP_PORT));
+
+addrinfo addr_hints;
+memset(&addr_hints, 0, sizeof(addr_hints));
+addr_hints.ai_family = AF_INET;
+addr_hints.ai_socktype = SOCK_STREAM;
+addr_hints.ai_protocol = tcp_proto->p_proto;
+
+addrinfo* addr_server;
+rc = getaddrinfo(NULL, server_port, &addr_hints, &addr_server);
+if (rc != 0)
+{
+    report_error("Can not resolve server hostname");
+    return;
+}
+```
+
+Converts the TCP port into network byte order using ```htons()```.
+
+Initializes an addrinfo structure to specify connection parameters:
+- ai_family = AF_INET: IPv4.
+- ai_socktype = SOCK_STREAM: TCP socket.
+
+Resolves the server's address information using ```getaddrinfo()```.
+
+**Create server socket**
+
+```
+int sock_server = socket(addr_server->ai_family, addr_server->ai_socktype, addr_server->ai_protocol);
+if (sock_server < 0)
+{
+    report_error("Server socket() failed");
+    freeaddrinfo(addr_server);
+    return;
+}
+```
+
+Creates a socket using the ```socket()``` function.
+
+
+```
+int sock_server_opt = 1;
+rc = setsockopt(sock_server, SOL_SOCKET, SO_REUSEADDR | SO_KEEPALIVE, &sock_server_opt, sizeof(sock_server_opt));
+if (rc < 0)
+{
+    report_error("Server setsockopt() failed");
+}
+```
+
+Configures socket options:
+
+```SO_REUSEADDR```: Allows the server to reuse the same port.
+
+```SO_KEEPALIVE```: Keeps the connection alive.
+
+**Bind socket to address and start to listen**
+
+```
+for (addrinfo* p_server = addr_server; p_server != NULL; p_server = p_server->ai_next)
+{
+    rc = bind(sock_server, p_server->ai_addr, p_server->ai_addrlen);
+    if (rc == 0)
+    {
+        break;
+    }
+}
+
+if (rc != 0)
+{
+    report_error("Server bind() failed");
+    close(sock_server);
+    freeaddrinfo(addr_server);
+    return;
+}
+```
+
+Binds the socket to the resolved address using ```bind()``` function.
+
+Iterates over potential addresses (```addrinfo``` list) until successful.
+
+```
+rc = listen(sock_server, 3);
+if (rc < 0)
+{
+    report_error("Server listen() failed");
+    close(sock_server);
+    freeaddrinfo(addr_server);
+    return;
+}
+```
+
+Starts listening for incoming client connections with a backlog of 3.
+
+**Server Loop - Accept incoming client connection**
+
+```
+sockaddr addr_client;
+socklen_t addr_len = sizeof(addr_client);
+sock_client = accept(sock_server, (sockaddr*)&addr_client, &addr_len);
+if (sock_client < 0)
+{
+    report_error("Server accept() failed");
+    continue;
+}
+```
+
+Accepts incoming client connections using ```accept()``` function.
+
+**Server Loop - Receiving requests**
+
+```
+int received_bytes = recv(sock_client, request_buffer, MESSAGE_SIZE, 0);
+if (received_bytes <= 0)
+{
+    report_error("Client is disconnected\n");
+    break;
+}
+```
+
+Reads data from the client using ```recv()``` function.
+
+**Server Loop - Processing requests**
+
+```
+if (strcmp(request_buffer, "exit") == 0
+|| strcmp(request_buffer, "quit") == 0
+|| strcmp(request_buffer, "shutdown") == 0)
+{
+    sprintf(response_buffer, "OK");
+    rc = send(sock_client, response_buffer, MESSAGE_SIZE, 0);
+    close(sock_client);
+    break;
+}
+else if (strcmp(request_buffer, "time") == 0)
+{
+    sprintf(response_buffer, "%d", time(NULL));
+    rc = send(sock_client, response_buffer, MESSAGE_SIZE, 0);
+}
+else
+{
+    sprintf(response_buffer, "Unknown request");
+    rc = send(sock_client, response_buffer, MESSAGE_SIZE, 0);
+}
+```
+
+Handles specific commands:
+
+```time```: Sends the current time.
+
+```exit, quit, shutdown```: Terminates the connection.
+
+```Other inputs```: Responds with "Unknown request".
+
+### Setup Client
+
+**Choose protocol and resolve server address**
+
+```
+protoent* tcp_proto = getprotobyname(PROTOCOL);
+if (tcp_proto == NULL)
+{
+    report_error("TCP protocol is not supported");
+    return;
+}
+
+addrinfo addr_hints;
+memset(&addr_hints, 0, sizeof(addr_hints));
+addr_hints.ai_family = AF_INET;
+addr_hints.ai_socktype = SOCK_STREAM;
+addr_hints.ai_protocol = tcp_proto->p_proto;
+
+addrinfo* addr_server;
+rc = getaddrinfo(HOST_NAME, server_port, &addr_hints, &addr_server);
+if (rc != 0)
+{
+    report_error("Failed to resolve hostname");
+    return;
+}
+```
+
+Resolves the server's address.
+
+**Create client socket and connect to server**
+
+```
+int sock_client = socket(addr_server->ai_family, addr_server->ai_socktype, addr_server->ai_protocol);
+if (sock_client < 0)
+{
+    report_error("client socket() failed");
+    freeaddrinfo(addr_server);
+    return;
+}
+
+for (addrinfo* p_server = addr_server; p_server != NULL; p_server = p_server->ai_next)
+{
+    rc = connect(sock_client, p_server->ai_addr, p_server->ai_addrlen);
+    if (rc == 0)
+    {
+        break;
+    }
+}
+
+if (rc != 0)
+{
+    report_error("client connect() failed");
+    close(sock_client);
+    freeaddrinfo(addr_server);
+    return;
+}
+```
+
+Creates a socket and connects to the server.
+
+Iterates over potential addresses (```addrinfo``` list) until successful.
+
+**Client Loop - Send request and wait for response**
+
+```
+fgets(request_buffer, MESSAGE_SIZE, stdin);
+request_buffer[strcspn(request_buffer, "\n")] = 0;
+send(sock_client, request_buffer, strlen(request_buffer), 0);
+recv(sock_client, response_buffer, MESSAGE_SIZE, 0);
+```
+
+Sends user input to the server and waits for a response.
+
+### Main Function
+
+```
+if (strcmp(argv[1], "server") == 0)
+{
+    run_server();
+}
+else if (strcmp(argv[1], "client") == 0)
+{
+    run_client();
+}
+```
+
+Determines whether the program will run as a server or client based on the command-line argument.
 
 ## Multithread TCP-Based Client-Server
 
+The provided C program is a simple implementation of a TCP client-server application and works well for basic use cases. However, it has several limitations, particularly on the server-side: it can only handle one client connection at a time. While it processes a request from one client, other clients are left waiting.
+
+**Improvement:**
+
+Use multithreading to handle multiple clients concurrently. Each client connection can be assigned to a separate thread, allowing the server to process multiple requests simultaneously.
+
 Click [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/09_multithread_client_server.cpp) for a complete source code.
 
+### Setup Server with multithreading
+
+The setup of Server socket and connection is the same as before. But in the Server Loop, each client connection will be handled in a detached thread.
+
+```
+int* p_sock_client = (int*)calloc(1, sizeof(int));
+*p_sock_client = sock_client;
+pthread_t client_thread;
+rc = pthread_create(&client_thread, NULL, server_handle_client, p_sock_client);
+if (rc != 0)
+{
+    report_error("Server create thread for new client failed");
+    continue;
+}
+
+rc = pthread_detach(client_thread);
+if (rc != 0)
+{
+    report_error("Detach client thread failed");
+}
 ```
 
+**Thread Code for a client**
+
+```
+void* server_handle_client(void* arg)
+{
+    int* sock_client = ((int*)arg);
+    if (sock_client == NULL)
+    {
+        return NULL;
+    }
+
+    int rc;
+    char request_buffer[MESSAGE_SIZE];
+    char response_buffer[MESSAGE_SIZE];
+    while (true)
+    {
+        memset(request_buffer, 0, MESSAGE_SIZE);
+        memset(response_buffer, 0, MESSAGE_SIZE);
+
+        int received_bytes = recv(*sock_client, request_buffer, MESSAGE_SIZE, 0);
+        
+        rc = send(*sock_client, response_buffer, MESSAGE_SIZE, 0);
+
+        if (strcmp(request_buffer, "exit") == 0
+        || strcmp(request_buffer, "quit") == 0
+        || strcmp(request_buffer, "shutdown") == 0)
+        {
+            break;
+        }
+    }
+
+    if (sock_client != NULL)
+    {
+        free(sock_client);
+    }
+
+    return NULL;
+}
 ```
 
 ## Simple UDP-Based Client-Server
