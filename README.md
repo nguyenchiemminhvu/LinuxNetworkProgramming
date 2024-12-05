@@ -1170,8 +1170,22 @@ while (true)
 ### Synchronous I/O Multiplexing with select()
 
 ```
+#include <sys/select.h>
+#include <sys/time.h>
+#include <unistd.h>
 
+int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout);
 ```
+
+```nfds```: The highest-numbered file descriptor + 1.
+
+```readfds```: Set of FDs to check for readability.
+
+```writefds```: Set of FDs to check for writability.
+
+```exceptfds```: Set of FDs to check for exceptional conditions.
+
+```timeout```: Maximum time ```select()``` should block, or ```NULL``` for indefinite blocking.
 
 ### Synchronous I/O Multiplexing with poll()
 
