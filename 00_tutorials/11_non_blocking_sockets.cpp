@@ -170,8 +170,6 @@ void run_server()
                 }
             }
         }
-
-        sleep(1);
     }
 
     close(sock_server);
@@ -276,8 +274,6 @@ void run_client()
         {
             printf("Client get response: %s\n", buffer);
         }
-
-        sleep(1);
     }
 
     freeaddrinfo(addr_server);

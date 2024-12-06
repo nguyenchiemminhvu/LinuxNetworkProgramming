@@ -1163,11 +1163,145 @@ while (true)
 
 ### Non-blocking sockets
 
-```
+Non-blocking sockets support to build responsive applications or handle multiple connections without blocking the main thread.
+
+The code [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/11_non_blocking_sockets.cpp) demonstrates the use of non-blocking sockets in a simple TCP-based application.
+
+In this example, the ```fcntl()``` function is used to set the server and client sockets to non-blocking mode.
 
 ```
+#include <fcntl.h>
+
+int fcntl(int fd, int cmd, ... /* arg */);
+```
+
+**Parameters:**
+
+```fd```: The file descriptor to operate on. It must already be open.
+
+```cmd```: The command to perform on the file descriptor. Common commands include:
+
+- ```F_DUPFD```: Duplicate a file descriptor.
+- ```F_GETFD```: Get the file descriptor flags.
+- ```F_SETFD```: Set the file descriptor flags.
+- ```F_GETFL```: Get the file status flags.
+- ```F_SETFL```: Set the file status flags.
+- ```F_SETLK```, ```F_SETLKW```, ```F_GETLK```: Manage file locks.
+
+```arg (optional)```: An argument whose type and meaning depend on the cmd. It's typically an integer or a pointer, depending on the command.
+
+**Utility Functions**
+
+```
+void set_non_blocking(int socket)
+{
+    int flags = fcntl(socket, F_GETFL, 0);
+    if (flags == -1)
+    {
+        report_error("fcntl(F_GETFL) failed");
+        return;
+    }
+
+    if (fcntl(socket, F_SETFL, flags | O_NONBLOCK) == -1)
+    {
+        report_error("fcntl(F_SETFL) failed");
+    }
+}
+```
+
+The utility function ```set_non_blocking()``` is used to configure the file descriptor of client and server sockets to operate non-blocking mode.
+
+**Server socket initialization and binding**
+
+```
+protoent* tcp_proto = getprotobyname(PROTOCOL);
+int sock_server = socket(addr_server->ai_family, addr_server->ai_socktype, addr_server->ai_protocol);
+set_non_blocking(sock_server);
+```
+
+Creates a TCP socket and sets it to non-blocking mode.
+
+Using ```set_non_blocking()``` ensures that the server does not block while waiting for connections.
+
+**Accept client connection**
+
+```
+sock_client = accept(sock_server, &addr_client, &addr_client_len);
+if (sock_client < 0)
+{
+    if (errno != EAGAIN && errno != EWOULDBLOCK)
+    {
+        report_error("Server accept() failed");
+        break;
+    }
+    else
+    {
+        printf("No client connection\n");
+    }
+}
+else
+{
+    set_non_blocking(sock_client);
+}
+```
+
+Because server socket is non-blocking, the ```accept()``` call returns immediately. If there is no connection available, errno is set to ```EAGAIN``` or ```EWOULDBLOCK```.
+
+**Receiving client data**
+
+```
+int received_bytes = recv(sock_client, buffer, MESSAGE_SIZE, 0);
+if (received_bytes < 0)
+{
+    if (errno != EAGAIN && errno != EWOULDBLOCK)
+    {
+        report_error("Server recv() failed");
+        break;
+    }
+}
+```
+
+Socket of client connection is set to non-blocking mode as well, ```recv()``` does not block when no data is available. If no data is received, errno is set to ```EAGAIN``` or ```EWOULDBLOCK```.
 
 ### Synchronous I/O Multiplexing with select()
+
+Applying non-blocking file descriptor technique to network sockets allows the server to accept multiple client connection at a time without the need of using multithreading.
+
+However, there is a limitation in the [previous sample code](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/11_non_blocking_sockets.cpp).
+
+The Server Loop continuously checks for connections and data, which can lead to high CPU usage.
+
+To address this, we can use I/O Multiplexing mechanism with the help of ```select()``` function.
+
+```
+#include <sys/select.h>
+#include <sys/time.h>
+#include <unistd.h>
+
+int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout);
+```
+
+**Parameters:**
+
+```nfds```: Specifies the range of file descriptors to be checked. This is usually set to the highest file descriptor + 1.
+
+```readfds```: A pointer to a set of file descriptors to monitor for readability. Use FD_SET() to add descriptors and FD_ISSET() to check them.
+
+```writefds```: A pointer to a set of file descriptors to monitor for writability.
+
+```exceptfds```: A pointer to a set of file descriptors to monitor for exceptional conditions.
+
+```timeout```: A pointer to a struct timeval that specifies the maximum time to wait. It can be: ```NULL```: Wait indefinitely. ```Zero timeout```: Non-blocking mode, checks the status immediately. ```Specific value```: Blocks for the specified duration.
+
+**Return Value:**
+
+```> 0```: Number of file descriptors ready for I/O.
+
+```0```: Timeout occurred, no file descriptors are ready.
+
+```-1```: An error occurred, and errno is set appropriately.
+
+The ```select()``` function in C is used for monitoring multiple file descriptors to see if they are ready for I/O operations such as reading, writing, or if there’s an exceptional condition. It’s commonly used in network programming for managing multiple sockets without multithreading.
 
 ```
 #include <sys/select.h>
@@ -1187,7 +1321,44 @@ int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struc
 
 ```timeout```: Maximum time ```select()``` should block, or ```NULL``` for indefinite blocking.
 
+Checkout the completed sample code using I/O Multiplexing with ```select()``` function [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/12_multiplexing_with_select.cpp).
+
+```
+
+```
+
 ### Synchronous I/O Multiplexing with poll()
+
+Similar to ```select()```, the ```poll()``` function provides a way to monitor multiple file descriptors for readiness to perform I/O operations. However, ```poll()``` overcomes some limitations of ```select()```, such as the fixed size of the file descriptor set.
+
+With ```poll()```, the server can efficiently handle multiple connections without needing multithreading, while addressing high CPU usage in the server loop.
+
+```
+#include <poll.h>
+#include <unistd.h>
+
+int poll(struct pollfd *fds, nfds_t nfds, int timeout);
+```
+
+**Parameters:**
+
+```fds```: A pointer to an array of struct pollfd, which represents the file descriptors to monitor.
+
+```nfds```: The number of file descriptors in the fds array.
+
+```timeout```: Specifies the maximum time to wait (in milliseconds). It can be: ```-1```: Wait indefinitely. ```0```: Return immediately (non-blocking mode). ```Positive value```: Block for the specified time.
+
+**Return Value:**
+
+```> 0```: The number of file descriptors with events.
+
+```0```: Timeout occurred, no events detected.
+
+```-1```: An error occurred, and errno is set appropriately.
+
+The ```poll()``` function is more scalable than ```select()``` for monitoring a large number of file descriptors. It is commonly used in network programming to manage multiple connections, enabling efficient I/O multiplexing.
+
+Check out the complete code for poll() I/O multiplexing [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/13_multiplexing_with_poll.cpp).
 
 ```
 
