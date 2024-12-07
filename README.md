@@ -1321,13 +1321,15 @@ int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struc
 
 ```timeout```: Maximum time ```select()``` should block, or ```NULL``` for indefinite blocking.
 
-Checkout the completed sample code using I/O Multiplexing with ```select()``` function [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/12_multiplexing_with_select.cpp).
+Checkout the completed sample code using I/O Multiplexing with ```select()``` function [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/12_multiplexing_select_client_server.cpp).
 
 ```
 
 ```
 
 ### Synchronous I/O Multiplexing with poll()
+
+> WARNING: select() can monitor only file descriptors numbers that are less than FD_SETSIZE (1024)—an unreasonably low limit for many modern applications—and this limitation will not change. All modern applications should instead use poll(2) or epoll(7), which do not suffer this limitation.
 
 Similar to ```select()```, the ```poll()``` function provides a way to monitor multiple file descriptors for readiness to perform I/O operations. However, ```poll()``` overcomes some limitations of ```select()```, such as the fixed size of the file descriptor set.
 
@@ -1358,7 +1360,7 @@ int poll(struct pollfd *fds, nfds_t nfds, int timeout);
 
 The ```poll()``` function is more scalable than ```select()``` for monitoring a large number of file descriptors. It is commonly used in network programming to manage multiple connections, enabling efficient I/O multiplexing.
 
-Check out the complete code for poll() I/O multiplexing [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/13_multiplexing_with_poll.cpp).
+Check out the complete code for poll() I/O multiplexing [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/13_multiplexing_poll_client_server.cpp).
 
 ```
 
