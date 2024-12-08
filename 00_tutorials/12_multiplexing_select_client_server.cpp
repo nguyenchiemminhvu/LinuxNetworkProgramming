@@ -63,7 +63,7 @@ void run_server()
     sprintf(port_server, "%d", htons(TCP_PORT));
 
     addrinfo hints;
-    memset(&hints, 0, sizeof(&hints));
+    memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_protocol = tcp_proto->p_proto;
@@ -80,6 +80,7 @@ void run_server()
     if (sock_server < 0)
     {
         report_error("Server socket() failed");
+        freeaddrinfo(addr_server);
         return;
     }
 
@@ -97,6 +98,8 @@ void run_server()
     if (rc != 0)
     {
         report_error("Server bind() failed");
+        freeaddrinfo(addr_server);
+        close(sock_server);
         return;
     }
 
@@ -104,6 +107,8 @@ void run_server()
     if (rc != 0)
     {
         report_error("Server listen() failed");
+        freeaddrinfo(addr_server);
+        close(sock_server);
         return;
     }
 
@@ -115,97 +120,124 @@ void run_server()
     memset(fds_client, 0, sizeof(fds_client));
 
     fd_set read_set;
+    fd_set master_set;
+    FD_ZERO(&master_set);
+    FD_SET(sock_server, &master_set);
+    global_max_fd = MAX(global_max_fd, sock_server);
     while (true)
     {
-        FD_ZERO(&read_set);
-        FD_SET(sock_server, &read_set);
-        global_max_fd = MAX(global_max_fd, sock_server);
+        read_set = master_set;
 
-        for (int i = 0; i < MAX_CONNECTION; i++)
-        {
-            if (fds_client[i] > 0)
-            {
-                FD_SET(fds_client[i], &read_set);
-            }
-
-            global_max_fd = MAX(global_max_fd, fds_client[i]);
-        }
-
-        int server_activity = select(global_max_fd + 1, &read_set, NULL, NULL, NULL);
-        if (server_activity < 0)
+        int activity = select(global_max_fd + 1, &read_set, NULL, NULL, NULL);
+        if (activity < 0)
         {
             report_error("Server select() failed");
         }
 
-        // check activity on server socket
-        if (FD_ISSET(sock_server, &read_set))
+        for (int i = 0; i <= global_max_fd; i++)
         {
-            sockaddr addr_client;
-            socklen_t addr_client_len = sizeof(sockaddr);
-            int sock_client = accept(sock_server, &addr_client, &addr_client_len);
-            if (sock_client < 0)
+            if (FD_ISSET(i, &read_set))
             {
-                report_error("Server accept() failed");
-            }
-            else
-            {
-                char ip_client[NI_MAXHOST];
-                char service_client[NI_MAXSERV];
-                rc = getnameinfo(&addr_client, addr_client_len, ip_client, sizeof(ip_client), service_client, sizeof(service_client), NI_NUMERICHOST | NI_NUMERICSERV);
-                if (rc == 0)
+                if (i == sock_server)
                 {
-                    printf("Server accepted client connection %s:%s\n", ip_client, service_client);
-                }
-                set_non_blocking(sock_client);
-
-                for (int i = 0; i < MAX_CONNECTION; i++)
-                {
-                    if (fds_client[i] == 0)
+                    sockaddr addr_client;
+                    socklen_t addr_client_len = sizeof(sockaddr);
+                    int sock_client = accept(sock_server, &addr_client, &addr_client_len);
+                    if (sock_client < 0)
                     {
-                        fds_client[i] = sock_client;
-                        break;
+                        report_error("Server accept() failed");
+                        continue;
+                    }
+                    else
+                    {
+                        char ip_client[NI_MAXHOST];
+                        char service_client[NI_MAXSERV];
+                        rc = getnameinfo(&addr_client, addr_client_len, ip_client, sizeof(ip_client), service_client, sizeof(service_client), NI_NUMERICHOST | NI_NUMERICSERV);
+                        if (rc == 0)
+                        {
+                            printf("Server accepted client connection %s:%s\n", ip_client, service_client);
+                        }
+                        set_non_blocking(sock_client);
+
+                        for (int i = 0; i < MAX_CONNECTION; i++)
+                        {
+                            if (fds_client[i] == 0)
+                            {
+                                fds_client[i] = sock_client;
+                                FD_SET(sock_client, &master_set);
+                                break;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    memset(request_buffer, 0, MESSAGE_SIZE);
+                    int received_bytes = recv(i, request_buffer, MESSAGE_SIZE, 0);
+                    if (received_bytes <= 0)
+                    {
+                        if (received_bytes < 0)
+                        {
+                            report_error("Server recv() failed");
+                        }
+                        else
+                        {
+                            printf("Client %d disconnected\n", i);
+                        }
+
+                        close(i);
+                        FD_CLR(i, &master_set);
+                        for (int j = 0; j < MAX_CONNECTION; j++)
+                        {
+                            if (fds_client[j] == i)
+                            {
+                                fds_client[j] = 0;
+                                break;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        request_buffer[received_bytes] = 0;
+                        printf("Server received request: %s\n", request_buffer);
+
+                        memset(response_buffer, 0, MESSAGE_SIZE);
+                        sprintf(response_buffer, "Server time: %ld", time(NULL));
+
+                        bool should_disconnect = false;
+                        int sent_bytes = send(fds_client[i], response_buffer, strlen(response_buffer), 0);
+                        if (sent_bytes <= 0)
+                        {
+                            should_disconnect = true;
+                        }
+
+                        if (strcmp(request_buffer, "quit") == 0 || strcmp(request_buffer, "exit") == 0)
+                        {
+                            should_disconnect = true;
+                        }
+
+                        if (should_disconnect)
+                        {
+                            close(i);
+                            FD_CLR(i, &master_set);
+                            for (int j = 0; j < MAX_CONNECTION; j++)
+                            {
+                                if (fds_client[j] == i)
+                                {
+                                    fds_client[j] = 0;
+                                    break;
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
-        
-        // check activity on connecting clients
-        for (int i = 0; i < MAX_CONNECTION; i++)
-        {
-            if (FD_ISSET(fds_client[i], &read_set))
-            {
-                memset(request_buffer, 0, MESSAGE_SIZE);
-                int received_bytes = recv(fds_client[i], request_buffer, MESSAGE_SIZE, 0);
-                if (received_bytes <= 0)
-                {
-                    report_error("Server recv() failed");
-                    close(fds_client[i]);
-                    fds_client[i] = 0;
-                    continue;
-                }
-
-                request_buffer[received_bytes] = 0;
-                printf("Server received request: %s\n", request_buffer);
-
-                memset(response_buffer, 0, MESSAGE_SIZE);
-                sprintf(response_buffer, "Server time: %d", time(NULL));
-                int sent_bytes = send(fds_client[i], response_buffer, strlen(response_buffer), 0);
-                if (sent_bytes <= 0)
-                {
-                    report_error("Server send() failed");
-                    close(fds_client[i]);
-                    fds_client[i] = 0;
-                    continue;
-                }
-
-                if (strcmp(request_buffer, "quit") == 0 || strcmp(request_buffer, "exit") == 0)
-                {
-                    close(fds_client[i]);
-                    fds_client[i] = 0;
-                }
-            }
-        }
     }
+
+    printf("Server exit with normal status");
+    freeaddrinfo(addr_server);
+    close(sock_server);
 }
 
 void run_client()
