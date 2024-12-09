@@ -1444,9 +1444,79 @@ The ```poll()``` function is more scalable than ```select()``` for monitoring a 
 
 Check out the complete code for poll() I/O multiplexing [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/13_multiplexing_poll_client_server.cpp).
 
-```
+**Initialization of pollfd array**
 
 ```
+pollfd fds[MAX_CONNECTION];
+memset(&fds, 0, sizeof(fds));
+fds[0].fd = sock_server;    // Monitor server socket
+fds[0].events = POLLIN;     // Monitor for incoming connections
+int nfds = 1;               // Start with one monitored socket
+```
+
+The server socket is the first entry in the ```pollfd``` array, which is dynamically updated as clients connect or disconnect.
+
+**Server Loop with poll()**
+
+```
+int activity = poll(fds, nfds, -1);  // Wait indefinitely
+if (activity < 0)
+{
+    report_error("Server poll() failed");
+    break;
+}
+```
+
+The loop continuously monitors the file descriptors and handles events as they occur.
+
+**Handle Server socket ready to read event**
+
+```
+if (fds[0].revents & POLLIN)
+{
+    sockaddr addr_client;
+    socklen_t addr_client_len = sizeof(sockaddr);
+    int sock_client = accept(fds[0].fd, &addr_client, &addr_client_len);
+    if (nfds < MAX_CONNECTION)
+    {
+        fds[nfds].fd = sock_client;
+        fds[nfds].events = POLLIN;  // Monitor for incoming data
+        nfds++;
+    }
+}
+```
+
+Each new connection is added to the ```pollfd``` array, and the total monitored descriptors ```nfds``` is incremented.
+
+**Handle client I/O**
+
+```
+for (int i = 1; i >= 1 && i < nfds; i++)
+{
+    if (fds[i].revents & POLLIN)
+    {
+        int received_bytes = recv(fds[i].fd, request_buffer, MESSAGE_SIZE, 0);
+        if (received_bytes <= 0)
+        {
+            close(fds[i].fd);
+            fds[i].fd = fds[nfds - 1].fd;  // Replace with the last descriptor
+            nfds--;                        // Reduce the total count
+            i--;
+        }
+        else
+        {
+            sprintf(response_buffer, "Server time: %ld", time(NULL));
+            send(fds[i].fd, response_buffer, strlen(response_buffer), 0);
+        }
+    }
+}
+```
+
+Receives data from the client.
+
+Sends a response or disconnects if necessary.
+
+Cleans up the ```pollfd``` array after disconnections by replacing the closed descriptor with the last one and reducing the monitored count.
 
 # Networking Libraries
 
