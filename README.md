@@ -1323,9 +1323,91 @@ int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struc
 
 Checkout the completed sample code using I/O Multiplexing with ```select()``` function [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/12_multiplexing_select_client_server.cpp).
 
-```
+**Initialization of fd_set**
 
 ```
+fd_set read_set;
+fd_set master_set;
+FD_ZERO(&master_set);
+FD_SET(sock_server, &master_set);
+global_max_fd = MAX(global_max_fd, sock_server);
+```
+
+```master_set``` keeps track of all file descriptors to monitor.
+
+```read_set``` is a temporary copy used by select() to determine which descriptors are ready for I/O.
+
+```global_max_fd``` variable is updated to the highest descriptor value for use in ```select()```.
+
+**I/O Multiplexing with select()**
+
+```
+read_set = master_set;
+
+int activity = select(global_max_fd + 1, &read_set, NULL, NULL, NULL);
+if (activity < 0)
+{
+    report_error("Server select() failed");
+}
+```
+
+```select()``` monitors the file descriptors in read_set for readability. It blocks until at least one descriptor is ready for reading.
+
+**Handling Ready Descriptors**
+
+```
+for (int i = 0; i <= global_max_fd; i++)
+{
+    if (FD_ISSET(i, &read_set))
+    {
+        if (i == sock_server)
+        {
+            // Handle new incoming connections
+        }
+        else
+        {
+            // Handle client I/O
+        }
+    }
+}
+```
+
+```FD_ISSET(i, &read_set)``` checks if descriptor i is ready for reading.
+
+If I/O is ready on the server socket, it has a new connection to accept. Otherwise, the descriptor corresponds to a client socket, and data can be read from it.
+
+**Accepting Server I/O**
+
+```
+sockaddr addr_client;
+socklen_t addr_client_len = sizeof(sockaddr);
+int sock_client = accept(sock_server, &addr_client, &addr_client_len);
+FD_SET(sock_client, &master_set);
+global_max_fd = MAX(global_max_fd, sock_client);
+```
+
+Adds the new client socket (sock_client) to ```master_set``` for monitoring.
+
+Updates ```global_max_fd``` if the new socket's value is higher.
+
+**Handling Client I/O**
+
+```
+int received_bytes = recv(i, request_buffer, MESSAGE_SIZE, 0);
+if (received_bytes <= 0)
+{
+    // Client disconnected or error occurred
+    close(i);
+    FD_CLR(i, &master_set);
+}
+else
+{
+    // Process received data and send a response
+    send(i, response_buffer, strlen(response_buffer), 0);
+}
+```
+
+If received_bytes <= 0, the client either disconnected or an error occurred, then removes the socket from ```master_set```.
 
 ### Synchronous I/O Multiplexing with poll()
 
