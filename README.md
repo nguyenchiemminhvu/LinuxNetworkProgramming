@@ -1523,25 +1523,25 @@ Cleans up the ```pollfd``` array after disconnections by replacing the closed de
 
 The full source code that demonstrate broadcasting socket can be found [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/14_broadcasting.cpp).
 
-**Setup broadcast receiver**
+**Setup broadcast receiver socket**
 
 ```
 
 ```
 
-**Setup broadcast sender**
+**Setup broadcast sender socket**
 
 ```
 
 ```
 
-**Run server**
+**Run receiver thread**
 
 ```
 
 ```
 
-**Run client**
+**Run sender thread**
 
 ```
 
