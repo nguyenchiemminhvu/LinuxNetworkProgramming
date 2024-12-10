@@ -38,6 +38,8 @@ void report_error(const char* message)
 
 int setup_broadcast_receiver(broadcast_t& receiver_info)
 {
+    int rc;
+
     receiver_info.fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (receiver_info.fd < 0)
     {
@@ -46,7 +48,8 @@ int setup_broadcast_receiver(broadcast_t& receiver_info)
     }
 
     int optval = 1;
-    if (setsockopt(receiver_info.fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == -1)
+    rc = setsockopt(receiver_info.fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+    if (rc != 0)
     {
         report_error("setsockopt(SO_REUSEADDR) failed");
         return -1;
@@ -57,7 +60,8 @@ int setup_broadcast_receiver(broadcast_t& receiver_info)
     receiver_info.addr_receiver.sin_addr.s_addr = htonl(INADDR_ANY);
     receiver_info.addr_receiver_len = sizeof(receiver_info.addr_receiver);
 
-    if (bind(receiver_info.fd, (sockaddr *)&receiver_info.addr_receiver, receiver_info.addr_receiver_len) < 0)
+    rc = bind(receiver_info.fd, (sockaddr *)&receiver_info.addr_receiver, receiver_info.addr_receiver_len);
+    if (rc < 0)
     {
         report_error("bind() failed for receiver");
         return -1;
@@ -68,6 +72,8 @@ int setup_broadcast_receiver(broadcast_t& receiver_info)
 
 int setup_broadcast_sender(broadcast_t& sender_info)
 {
+    int rc;
+
     sender_info.fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sender_info.fd < 0)
     {
@@ -76,7 +82,8 @@ int setup_broadcast_sender(broadcast_t& sender_info)
     }
 
     int optval = 1;
-    if (setsockopt(sender_info.fd, SOL_SOCKET, SO_BROADCAST, &optval, sizeof(optval)) == -1)
+    rc = setsockopt(sender_info.fd, SOL_SOCKET, SO_BROADCAST, &optval, sizeof(optval));
+    if (rc != 0)
     {
         report_error("setsockopt(SO_BROADCAST) failed");
         return -1;

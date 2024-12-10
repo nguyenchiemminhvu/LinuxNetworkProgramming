@@ -1521,31 +1521,171 @@ Cleans up the ```pollfd``` array after disconnections by replacing the closed de
 
 ### Broadcasting Messages
 
+Broadcasting is a method in networking where a message is sent from one computer (called the sender) to all computers (called receivers) within the same network. This is like one person shouting a message in a room so that everyone in the room hears it (including yourself). The most common address for broadcasting is ```255.255.255.255```.
+
 The full source code that demonstrate broadcasting socket can be found [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/14_broadcasting.cpp).
 
-**Setup broadcast receiver**
+**Setup broadcast receiver socket**
 
 ```
+int setup_broadcast_receiver(broadcast_t& receiver_info)
+{
+    receiver_info.fd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (receiver_info.fd < 0)
+    {
+        report_error("socket() failed for receiver");
+        return -1;
+    }
 
+    int optval = 1;
+    if (setsockopt(receiver_info.fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == -1)
+    {
+        report_error("setsockopt(SO_REUSEADDR) failed");
+        return -1;
+    }
+
+    receiver_info.addr_receiver.sin_family = AF_INET;
+    receiver_info.addr_receiver.sin_port = htons(BROADCAST_PORT);
+    receiver_info.addr_receiver.sin_addr.s_addr = htonl(INADDR_ANY);
+    receiver_info.addr_receiver_len = sizeof(receiver_info.addr_receiver);
+
+    if (bind(receiver_info.fd, (sockaddr *)&receiver_info.addr_receiver, receiver_info.addr_receiver_len) < 0)
+    {
+        report_error("bind() failed for receiver");
+        return -1;
+    }
+
+    return 0;
+}
 ```
 
-**Setup broadcast sender**
+```socket()```: Creates a UDP socket (```SOCK_DGRAM```) for communication.
+
+```setsockopt()```: Configures the socket with ```SO_REUSEADDR``` option to allow binding the socket to an address that is already in use.
+
+```bind()```: Binds the socket to a specific port (```BROADCAST_PORT```) on the local machine. It listens for messages sent to this port.
+
+This receiver is set up to receive broadcast messages sent to the ```BROADCAST_PORT``` (defined as 5555).
+
+**Setup broadcast sender socket**
 
 ```
+int setup_broadcast_sender(broadcast_t& sender_info)
+{
+    sender_info.fd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sender_info.fd < 0)
+    {
+        report_error("socket() failed for sender");
+        return -1;
+    }
 
+    int optval = 1;
+    if (setsockopt(sender_info.fd, SOL_SOCKET, SO_BROADCAST, &optval, sizeof(optval)) == -1)
+    {
+        report_error("setsockopt(SO_BROADCAST) failed");
+        return -1;
+    }
+
+    sender_info.addr_receiver.sin_family = AF_INET;
+    sender_info.addr_receiver.sin_port = htons(BROADCAST_PORT);
+    inet_pton(AF_INET, BROADCAST_ADDR, &sender_info.addr_receiver.sin_addr);
+    sender_info.addr_receiver_len = sizeof(sender_info.addr_receiver);
+
+    return 0;
+}
 ```
 
-**Run server**
+```socket()```: Creates a UDP socket (```SOCK_DGRAM```) for broadcasting.
+
+```setsockopt()```: Configures the socket to allow broadcasting with the ```SO_BROADCAST``` option.
+
+```inet_pton()```: Converts the broadcast IP address (```255.255.255.255```) from text to binary format to be used in the socket.
+
+The sender is set to send broadcast messages to the specified address and port.
+
+**Run receiver thread**
 
 ```
+void* broadcast_receiver_thread_func(void* arg)
+{
+    broadcast_t broadcast_receiver_info;
+    if (setup_broadcast_receiver(broadcast_receiver_info) != 0)
+    {
+        report_error("setup_broadcast_receiver() failed");
+        return NULL;
+    }
 
+    char buffer[MESSAGE_SIZE];
+
+    printf("Start to listen broadcast messages\n");
+    while (true)
+    {
+        memset(buffer, 0, MESSAGE_SIZE);
+        int received_bytes = recvfrom(broadcast_receiver_info.fd, buffer, MESSAGE_SIZE, 0, (sockaddr*)&broadcast_receiver_info.addr_receiver, &broadcast_receiver_info.addr_receiver_len);
+        if (received_bytes <= 0)
+        {
+            report_error("Broadcast receiver recvfrom() failed");
+        }
+        else
+        {
+            printf("Received broadcast message: %s\n", buffer);
+        }
+    }
+
+    close(broadcast_receiver_info.fd);
+
+    return NULL;
+}
 ```
 
-**Run client**
+The function ```broadcast_receiver_thread_func``` runs in a separate thread.
+
+It first calls ```setup_broadcast_receiver()``` to set up the receiver socket.
+
+Then, it listens for incoming messages using ```recvfrom()```. Each received message is printed to the console.
+
+The ```recvfrom()``` function reads the broadcast message into the buffer and prints it. If there is an error or no data is received, it reports the issue.
+
+The receiver thread will continue to listen until the program is terminated.
+
+**Run sender thread**
 
 ```
+void* broadcast_sender_thread_func(void* arg)
+{
+    char* nick_name = (char*)arg;
 
+    broadcast_t broadcast_sender_info;
+    if (setup_broadcast_sender(broadcast_sender_info) != 0)
+    {
+        report_error("setup_broadcast_sender() failed");
+        return NULL;
+    }
+
+    char broadcast_message[MESSAGE_SIZE];
+    while (true)
+    {
+        memset(broadcast_message, 0, MESSAGE_SIZE);
+        sprintf(broadcast_message, "%s is active", nick_name);
+        int sent_bytes = sendto(broadcast_sender_info.fd, broadcast_message, MESSAGE_SIZE, 0, (sockaddr*)&broadcast_sender_info.addr_receiver, broadcast_sender_info.addr_receiver_len);
+        if (sent_bytes <= 0)
+        {
+            report_error("Send broadcast message failed");
+        }
+        sleep(1);
+    }
+
+    close(broadcast_sender_info.fd);
+
+    return NULL;
+}
 ```
+
+The function ```broadcast_sender_thread_func``` is responsible for sending broadcast messages to the broadcast address (```255.255.255.255```).
+
+It sets up the sender socket by calling ```setup_broadcast_sender()```.
+
+Inside a loop, it creates a message string containing the user's nickname and sends it via the sendto() function to the broadcast address every second.
 
 # Networking Libraries
 
