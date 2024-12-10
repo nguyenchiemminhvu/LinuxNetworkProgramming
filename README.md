@@ -47,6 +47,7 @@
     - [Non-blocking sockets](#non-blocking-sockets)
     - [Synchronous I/O Multiplexing with select()](#synchronous-io-multiplexing-with-select)
     - [Synchronous I/O Multiplexing with poll()](#synchronous-io-multiplexing-with-poll)
+    - [Broadcasting Messages](#broadcasting-messages)
 - [Networking Libraries](#networking-libraries)
   - [Using libcurl](#using-libcurl)
     - [Basic Curl](#basic-curl)
@@ -1517,6 +1518,34 @@ Receives data from the client.
 Sends a response or disconnects if necessary.
 
 Cleans up the ```pollfd``` array after disconnections by replacing the closed descriptor with the last one and reducing the monitored count.
+
+### Broadcasting Messages
+
+The full source code that demonstrate broadcasting socket can be found [HERE]().
+
+**Setup broadcast receiver**
+
+```
+
+```
+
+**Setup broadcast sender**
+
+```
+
+```
+
+**Run server**
+
+```
+
+```
+
+**Run client**
+
+```
+
+```
 
 # Networking Libraries
 
