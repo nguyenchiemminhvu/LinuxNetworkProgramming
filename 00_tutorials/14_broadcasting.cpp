@@ -15,19 +15,20 @@
 #include <pthread.h>
 
 #define PROTOCOL "udp"
+#define BROADCAST_ADDR "255.255.255.255"
 #define BROADCAST_PORT 5555
 #define MESSAGE_SIZE 1024
 
 struct broadcast_t
 {
     int fd;
-    sockaddr addr_receiver;
+    sockaddr_in addr_receiver;
     socklen_t addr_receiver_len;
 };
 
 void print_usage(const char *program_name)
 {
-    fprintf(stderr, "Usage: %s <server|client> <your_nickname>\n", program_name);
+    fprintf(stderr, "Usage: %s <your_nickname>\n", program_name);
 }
 
 void report_error(const char* message)
@@ -35,86 +36,30 @@ void report_error(const char* message)
     fprintf(stderr, "Error: %s\n", message);
 }
 
-void set_non_blocking(int socket)
-{
-    int flags = fcntl(socket, F_GETFL, 0);
-    if (flags == -1)
-    {
-        report_error("fcntl(F_GETFL) failed");
-        return;
-    }
-
-    if (fcntl(socket, F_SETFL, flags | O_NONBLOCK) == -1)
-    {
-        report_error("fcntl(F_SETFL) failed");
-    }
-}
-
-void set_socket_broadcasting(int socket)
-{
-    int optval = 1;
-    int rc = setsockopt(socket, SOL_SOCKET, SO_BROADCAST, &optval, sizeof(optval));
-    if (rc == -1)
-    {
-        report_error("setsockopt(SO_BROADCAST) failed");
-    }
-}
-
 int setup_broadcast_receiver(broadcast_t& receiver_info)
 {
-    int rc;
-
-    protoent* udp_proto = getprotobyname(PROTOCOL);
-    if (udp_proto == NULL)
-    {
-        report_error("UDP protocol is not supported");
-        return -1;
-    }
-
-    char port_broadcast[6];
-    memset(port_broadcast, 0, 6);
-    sprintf(port_broadcast, "%d", htons(BROADCAST_PORT));
-
-    addrinfo hints;
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_DGRAM;
-    hints.ai_protocol = udp_proto->p_proto;
-    hints.ai_flags = AI_PASSIVE;
-    addrinfo* addr_broadcast;
-    rc = getaddrinfo(NULL, port_broadcast, &hints, &addr_broadcast);
-    if (rc != 0)
-    {
-        report_error("Broadcast address setup failed");
-        return -1;
-    }
-
-    receiver_info.fd = socket(addr_broadcast->ai_family, addr_broadcast->ai_socktype, addr_broadcast->ai_protocol);
+    receiver_info.fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (receiver_info.fd < 0)
     {
-        report_error("Broadcast receiver socker() failed");
-        freeaddrinfo(addr_broadcast);
+        report_error("socket() failed for receiver");
         return -1;
     }
 
-    set_non_blocking(receiver_info.fd);
-
-    for (addrinfo* p = addr_broadcast; p != NULL; p = p->ai_next)
+    int optval = 1;
+    if (setsockopt(receiver_info.fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == -1)
     {
-        rc = bind(receiver_info.fd, p->ai_addr, p->ai_addrlen);
-        if (rc == 0)
-        {
-            receiver_info.addr_receiver = *(p->ai_addr);
-            receiver_info.addr_receiver_len = p->ai_addrlen;
-            break;
-        }
+        report_error("setsockopt(SO_REUSEADDR) failed");
+        return -1;
     }
 
-    freeaddrinfo(addr_broadcast);
+    receiver_info.addr_receiver.sin_family = AF_INET;
+    receiver_info.addr_receiver.sin_port = htons(BROADCAST_PORT);
+    receiver_info.addr_receiver.sin_addr.s_addr = htonl(INADDR_ANY);
+    receiver_info.addr_receiver_len = sizeof(receiver_info.addr_receiver);
 
-    if (rc != 0)
+    if (bind(receiver_info.fd, (sockaddr *)&receiver_info.addr_receiver, receiver_info.addr_receiver_len) < 0)
     {
-        report_error("Broadcast receiver bind() failed");
+        report_error("bind() failed for receiver");
         return -1;
     }
 
@@ -123,101 +68,68 @@ int setup_broadcast_receiver(broadcast_t& receiver_info)
 
 int setup_broadcast_sender(broadcast_t& sender_info)
 {
-    int rc;
-
-    protoent* udp_proto = getprotobyname(PROTOCOL);
-    if (udp_proto == NULL)
-    {
-        report_error("UDP protocol is not supported");
-        return -1;
-    }
-
-    char port_broadcast[6];
-    memset(port_broadcast, 0, 6);
-    sprintf(port_broadcast, "%d", htons(BROADCAST_PORT));
-
-    addrinfo hints;
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_DGRAM;
-    hints.ai_protocol = udp_proto->p_proto;
-    addrinfo* addr_broadcast;
-    rc = getaddrinfo(NULL, port_broadcast, &hints, &addr_broadcast);
-    if (rc != 0)
-    {
-        report_error("Broadcast address setup failed");
-        return -1;
-    }
-
-    sender_info.fd = socket(addr_broadcast->ai_family, addr_broadcast->ai_socktype, addr_broadcast->ai_protocol);
+    sender_info.fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sender_info.fd < 0)
     {
-        report_error("Broadcast sender socket() failed");
-        freeaddrinfo(addr_broadcast);
+        report_error("socket() failed for sender");
         return -1;
     }
 
-    set_socket_broadcasting(sender_info.fd);
+    int optval = 1;
+    if (setsockopt(sender_info.fd, SOL_SOCKET, SO_BROADCAST, &optval, sizeof(optval)) == -1)
+    {
+        report_error("setsockopt(SO_BROADCAST) failed");
+        return -1;
+    }
 
-    sender_info.addr_receiver = *(addr_broadcast->ai_addr);
-    sender_info.addr_receiver_len = addr_broadcast->ai_addrlen;
-
-    freeaddrinfo(addr_broadcast);
+    sender_info.addr_receiver.sin_family = AF_INET;
+    sender_info.addr_receiver.sin_port = htons(BROADCAST_PORT);
+    inet_pton(AF_INET, BROADCAST_ADDR, &sender_info.addr_receiver.sin_addr);
+    sender_info.addr_receiver_len = sizeof(sender_info.addr_receiver);
 
     return 0;
 }
 
-void run_server()
+void* broadcast_receiver_thread_func(void* arg)
 {
     broadcast_t broadcast_receiver_info;
     if (setup_broadcast_receiver(broadcast_receiver_info) != 0)
     {
         report_error("setup_broadcast_receiver() failed");
-        return;
+        return NULL;
     }
-
-    pollfd fds_receiver[1];
-    memset(&fds_receiver, 0, sizeof(fds_receiver));
-    fds_receiver[0].fd = broadcast_receiver_info.fd;
-    fds_receiver[0].events = POLLIN;
 
     char buffer[MESSAGE_SIZE];
 
     printf("Start to listen broadcast messages\n");
     while (true)
     {
-        int activity = poll(fds_receiver, 1, -1);
-        if (activity < 0)
+        memset(buffer, 0, MESSAGE_SIZE);
+        int received_bytes = recvfrom(broadcast_receiver_info.fd, buffer, MESSAGE_SIZE, 0, (sockaddr*)&broadcast_receiver_info.addr_receiver, &broadcast_receiver_info.addr_receiver_len);
+        if (received_bytes <= 0)
         {
-            report_error("Broadcast receiver thread poll() failed");
-            break;
+            report_error("Broadcast receiver recvfrom() failed");
         }
-
-        if (fds_receiver[0].revents & POLLIN)
+        else
         {
-            memset(buffer, 0, MESSAGE_SIZE);
-            int received_bytes = recvfrom(fds_receiver[0].fd, buffer, MESSAGE_SIZE, 0, &broadcast_receiver_info.addr_receiver, &broadcast_receiver_info.addr_receiver_len);
-            if (received_bytes <= 0)
-            {
-                report_error("Broadcast receiver recvfrom() failed");
-            }
-            else
-            {
-                printf("%s\n", buffer);
-            }
+            printf("Received broadcast message: %s\n", buffer);
         }
     }
 
     close(broadcast_receiver_info.fd);
+
+    return NULL;
 }
 
-void run_client(const char* nick_name)
+void* broadcast_sender_thread_func(void* arg)
 {
+    char* nick_name = (char*)arg;
+
     broadcast_t broadcast_sender_info;
     if (setup_broadcast_sender(broadcast_sender_info) != 0)
     {
         report_error("setup_broadcast_sender() failed");
-        return;
+        return NULL;
     }
 
     char broadcast_message[MESSAGE_SIZE];
@@ -225,35 +137,48 @@ void run_client(const char* nick_name)
     {
         memset(broadcast_message, 0, MESSAGE_SIZE);
         sprintf(broadcast_message, "%s is active", nick_name);
-        int sent_bytes = sendto(broadcast_sender_info.fd, broadcast_message, MESSAGE_SIZE, 0, &broadcast_sender_info.addr_receiver, broadcast_sender_info.addr_receiver_len);
+        int sent_bytes = sendto(broadcast_sender_info.fd, broadcast_message, MESSAGE_SIZE, 0, (sockaddr*)&broadcast_sender_info.addr_receiver, broadcast_sender_info.addr_receiver_len);
         if (sent_bytes <= 0)
         {
             report_error("Send broadcast message failed");
         }
         sleep(1);
     }
+
+    close(broadcast_sender_info.fd);
+
+    return NULL;
 }
 
 int main(int argc, char** argv)
 {
-    if (argc < 2)
+    if (argc != 2)
     {
         print_usage(argv[0]);
         return -1;
     }
 
-    if (argc == 2 && strcmp(argv[1], "server") == 0)
+    pthread_t broadcast_receiver_thread;
+    pthread_create(&broadcast_receiver_thread, NULL, broadcast_receiver_thread_func, NULL);
+    pthread_detach(broadcast_receiver_thread);
+
+    pthread_t broadcast_sender_thread;
+    pthread_create(&broadcast_sender_thread, NULL, broadcast_sender_thread_func, argv[1]);
+    pthread_detach(broadcast_sender_thread);
+
+    char buffer_stdin[MESSAGE_SIZE];
+    while (true)
     {
-        run_server();
-    }
-    else if (argc == 3 && strcmp(argv[1], "client") == 0)
-    {
-        run_client(argv[2]);
-    }
-    else
-    {
-        print_usage(argv[0]);
-        return -1;
+        printf("User input: ");
+        memset(buffer_stdin, 0, MESSAGE_SIZE);
+        fgets(buffer_stdin, MESSAGE_SIZE, stdin);
+        buffer_stdin[strcspn(buffer_stdin, "\r\n")] = 0;
+
+        if (strcmp(buffer_stdin, "exit") == 0
+         || strcmp(buffer_stdin, "quit") == 0)
+        {
+            break;
+        }
     }
 
     return 0;
