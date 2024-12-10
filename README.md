@@ -52,7 +52,7 @@
   - [Using libcurl](#using-libcurl)
     - [curl command-line examples](#curl-command-line-examples)
     - [Basic Curl](#basic-curl)
-    - [Curl Multiple Handle](#curl-multiple-handle)
+    - [Curl Multiple Handles](#curl-multiple-handles)
     - [Curl Multithreading](#curl-multithreading)
   - [Secure Networking with OpenSSL](#secure-networking-with-openssl)
 - [Conclusion](#conclusion)
@@ -1698,77 +1698,115 @@ Using libcurl is ideal for tasks that involve fetching web pages, uploading file
 
 ### curl command-line examples
 
+Fetches the content of http://example.com and saves it into a file called ```temp.txt```.
+
 ```
 curl http://example.com > temp.txt
 ```
 
-Fetches the content of http://example.com and saves it into a file called ```temp.txt```.
+----
+
+Downloads the content of http://example.com and saves it as ```index.html```.
 
 ```
 curl http://example.com -o index.html
 ```
 
-Downloads the content of http://example.com and saves it as ```index.html```.
+----
+
+Downloads a file called ```file.zip``` from http://example.com
 
 ```
 curl -O http://example.com/file.zip
 ```
 
-Downloads a file called ```file.zip``` from http://example.com
+----
+
+Sends a ```POST``` request to http://example.com with data "name=ncmv".
 
 ```
 curl -X POST -d "name=ncmv" http://example.com
 ```
 
-Sends a ```POST``` request to http://example.com with data "name=ncmv".
+----
+
+Sends a ```POST``` request to http://example.com with ```JSON``` data ({"name":"John","age":30}).
 
 ```
 curl -X POST -H "Content-Type: application/json" -d '{"name":"John","age":30}' http://example.com
 ```
 
-Sends a ```POST``` request to http://example.com with ```JSON``` data ({"name":"John","age":30}).
+----
+
+Fetches only the headers of the ```HTTP``` response from http://example.com
 
 ```
 curl -I http://example.com
 ```
 
-Fetches only the headers of the ```HTTP``` response from http://example.com
+----
+
+Accesses http://example.com using ```HTTP``` Basic Authentication with the username ```username``` and password ```password```.
 
 ```
 curl -u username:password http://example.com
 ```
 
-Accesses http://example.com using ```HTTP``` Basic Authentication with the username ```username``` and password ```password```.
+----
+
+Downloads the file ```readme.txt``` from the ```FTP``` server ```test.rebex.net``` using the username ```demo``` and password ```password```.
 
 ```
 curl ftp://test.rebex.net/readme.txt --user demo:password
 ```
 
-Downloads the file ```readme.txt``` from the ```FTP``` server ```test.rebex.net``` using the username ```demo``` and password ```password```.
+----
+
+Uploads the local file temp to the ```FTP``` server ```test.rebex.net``` using the username ```demo``` and password ```password```.
 
 ```
 curl -T temp ftp://test.rebex.net/ --user demo:password
 ```
 
-Uploads the local file temp to the ```FTP``` server ```test.rebex.net``` using the username ```demo``` and password ```password```.
+----
+
+Uploads the local file temp to the ```SFTP``` server at ```localhost``` into the folder ```/home/ncmv/study_workspace/``` using the username ```demo``` and password ```password```.
 
 ```
 curl -u demo:passowrd -T temp sftp://localhost/home/ncmv/study_workspace/
 ```
 
-Uploads the local file temp to the ```SFTP``` server at ```localhost``` into the folder ```/home/ncmv/study_workspace/``` using the username ```demo``` and password ```password```.
+----
+
+Downloads the file temp from the ```SFTP``` server ```localhost``` (in the folder ```/home/ncmv/study_workspace/```) using the username ```demo``` and password ```password```, and saves it locally as ````temp````.
 
 ```
 curl -u demo:password sftp://localhost/home/ncmv/study_workspace/temp -O temp
 ```
 
-Downloads the file temp from the ```SFTP``` server ```localhost``` (in the folder ```/home/ncmv/study_workspace/```) using the username ```demo``` and password ```password```, and saves it locally as ````temp````.
-
 ### Basic Curl
 
-### Curl Multiple Handle
+```
+
+```
+
+Full source code of basic curl example [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/01_networking_libraries/libcurl/src/basic_curl.cpp).
+
+### Curl Multiple Handles
+
+```
+
+```
+
+Full source code of curl multiple handles example [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/01_networking_libraries/libcurl/src/curl_multi_handle.cpp).
 
 ### Curl Multithreading
+
+```
+
+```
+
+Full source code of basic curl multithreading [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/01_networking_libraries/libcurl/src/curl_multithreaded.cpp).
 
 ## Secure Networking with OpenSSL
 
