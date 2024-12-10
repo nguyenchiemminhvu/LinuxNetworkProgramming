@@ -50,6 +50,7 @@
     - [Broadcasting Messages](#broadcasting-messages)
 - [Networking Libraries](#networking-libraries)
   - [Using libcurl](#using-libcurl)
+    - [curl command-line examples](#curl-command-line-examples)
     - [Basic Curl](#basic-curl)
     - [Curl Multiple Handle](#curl-multiple-handle)
     - [Curl Multithreading](#curl-multithreading)
@@ -1690,6 +1691,78 @@ Inside a loop, it creates a message string containing the user's nickname and se
 # Networking Libraries
 
 ## Using libcurl
+
+[libcurl](https://curl.se/libcurl/) is a widely-used and powerful C library designed for transferring data over networks using a wide variety of protocols. It is the library behind the popular ```curl``` command-line tool and provides developers with a programmatic way to send and receive data through ```HTTP```, ```HTTPS```, ```FTP```, and other protocols.
+
+Using libcurl is ideal for tasks that involve fetching web pages, uploading files to servers, interacting with ```REST APIs```, or sending emails... It saves time and effort because it eliminates the need to deal with low-level socket programming and protocol parsing. Instead of manually implementing low-level socket operations and parsing protocols, we can rely on libcurl to do the heavy lifting (creating network connections, handling requests, and managing data streams...).
+
+### curl command-line examples
+
+```
+curl http://example.com > temp.txt
+```
+
+Fetches the content of http://example.com and saves it into a file called ```temp.txt```.
+
+```
+curl http://example.com -o index.html
+```
+
+Downloads the content of http://example.com and saves it as ```index.html```.
+
+```
+curl -O http://example.com/file.zip
+```
+
+Downloads a file called ```file.zip``` from http://example.com
+
+```
+curl -X POST -d "name=ncmv" http://example.com
+```
+
+Sends a ```POST``` request to http://example.com with data "name=ncmv".
+
+```
+curl -X POST -H "Content-Type: application/json" -d '{"name":"John","age":30}' http://example.com
+```
+
+Sends a ```POST``` request to http://example.com with ```JSON``` data ({"name":"John","age":30}).
+
+```
+curl -I http://example.com
+```
+
+Fetches only the headers of the ```HTTP``` response from http://example.com
+
+```
+curl -u username:password http://example.com
+```
+
+Accesses http://example.com using ```HTTP``` Basic Authentication with the username ```username``` and password ```password```.
+
+```
+curl ftp://test.rebex.net/readme.txt --user demo:password
+```
+
+Downloads the file ```readme.txt``` from the ```FTP``` server ```test.rebex.net``` using the username ```demo``` and password ```password```.
+
+```
+curl -T temp ftp://test.rebex.net/ --user demo:password
+```
+
+Uploads the local file temp to the ```FTP``` server ```test.rebex.net``` using the username ```demo``` and password ```password```.
+
+```
+curl -u demo:passowrd -T temp sftp://localhost/home/ncmv/study_workspace/
+```
+
+Uploads the local file temp to the ```SFTP``` server at ```localhost``` into the folder ```/home/ncmv/study_workspace/``` using the username ```demo``` and password ```password```.
+
+```
+curl -u demo:password sftp://localhost/home/ncmv/study_workspace/temp -O temp
+```
+
+Downloads the file temp from the ```SFTP``` server ```localhost``` (in the folder ```/home/ncmv/study_workspace/```) using the username ```demo``` and password ```password```, and saves it locally as ````temp````.
 
 ### Basic Curl
 

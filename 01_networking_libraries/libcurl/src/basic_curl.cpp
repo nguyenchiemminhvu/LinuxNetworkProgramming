@@ -44,7 +44,7 @@ int main()
     curl = curl_easy_init();
     if (curl) {
         // Set the URL
-        curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:8000");
+        curl_easy_setopt(curl, CURLOPT_URL, "http://httpstat.us/200");
 
         // Set the callback function to handle the response
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
