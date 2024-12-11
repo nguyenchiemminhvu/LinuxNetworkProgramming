@@ -1808,15 +1808,15 @@ Purpose: This function handles data received from the server during the HTTP req
 
 Parameters:
 
-```contents```: A pointer to the data received.
-
-```size``` and ```nmemb```: Together, they specify the size of the received data (in bytes).
-
-```userp```: A user-provided pointer to store the received data (in this case, a std::string).
+- ```contents```: A pointer to the data received.
+- ```size``` and ```nmemb```: Together, they specify the size of the received data (in bytes).
+- ```userp```: A user-provided pointer to store the received data (in this case, a std::string).
 
 What it does:
 
-Calculates the total size of the data: size * nmemb. Appends the received data (converted to a string) to the ```std::string``` object passed in ```userp```. Returns the total size of the data to let libcurl know how much data was processed.
+- Calculates the total size of the data: size * nmemb.
+- Appends the received data (converted to a string) to the ```std::string``` object passed in ```userp```.
+- Returns the total size of the data to let libcurl know how much data was processed.
 
 **Check libcurl version**
 
@@ -1840,19 +1840,14 @@ if (info)
         std::cout << std::endl;
     }
 }
-else
-{
-    std::cerr << "Failed to get libcurl version info." << std::endl;
-}
 ```
 
 Purpose: Displays the version information and features supported by ```libcurl```.
 
 How it works:
 
-Calls ```curl_version_info(CURLVERSION_NOW)``` to get information about the current version of ```libcurl```.
-
-Prints the version, ```SSL``` support, compression library (```Libz```), and the supported protocols (```HTTP```, ```HTTPS```, ```FTP```, ...).
+- Calls ```curl_version_info(CURLVERSION_NOW)``` to get information about the current version of ```libcurl```.
+- Prints the version, ```SSL``` support, compression library (```Libz```), and the supported protocols (```HTTP```, ```HTTPS```, ```FTP```, ...).
 
 **Initialize libcurl**
 
@@ -1866,9 +1861,8 @@ curl = curl_easy_init();
 
 Details:
 
-```CURL *curl```: A handle to manage the HTTP session.
-
-```curl_easy_init()```: Initializes the handle. If successful, curl will not be NULL.
+- ```CURL *curl```: A handle to manage the HTTP session.
+- ```curl_easy_init()```: Initializes the handle. If successful, curl will not be NULL.
 
 **Set libcurl options**
 
@@ -1882,11 +1876,9 @@ Purpose: Configures options for the HTTP request.
 
 Options:
 
-```CURLOPT_URL```: Sets the URL to request.
-
-```CURLOPT_WRITEFUNCTION```: Specifies the callback function (```WriteCallback```) to handle the response data.
-
-```CURLOPT_WRITEDATA```: Provides the ```std::string``` object (```readBuffer```) where the response data will be stored.
+- ```CURLOPT_URL```: Sets the URL to request.
+- ```CURLOPT_WRITEFUNCTION```: Specifies the callback function (```WriteCallback```) to handle the response data.
+- ```CURLOPT_WRITEDATA```: Provides the ```std::string``` object (```readBuffer```) where the response data will be stored.
 
 **Perform HTTP request**
 
@@ -1922,17 +1914,375 @@ Full source code of basic curl example [HERE](https://github.com/nguyenchiemminh
 
 ### Curl Multiple Handles
 
+**Include necessary headers**
+
+```
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <vector>
+#include <curl/curl.h>
 ```
 
+**Define a Easy Handle struct**
+
+```
+struct CurlEasyHandle
+{
+    CURL* easy_handle;
+    std::string url;
+    std::string data;
+};
+```
+
+Purpose: Stores information for each HTTP request.
+
+- ```CURL* easy_handle```: A handle for making a single HTTP request.
+- ```std::string url```: The URL to fetch.
+- ```std::string data```: Stores the HTTP response data.
+
+**Callback function for receiving HTTP response**
+
+```
+std::size_t perform_callback(char* ptr, std::size_t size, std::size_t nmemb, void* userdata)
+{
+    std::string* str = static_cast<std::string*>(userdata);
+    std::size_t total_size = size * nmemb;
+    str->append(ptr, total_size);
+    return total_size;
+}
+```
+
+Purpose: Handles the data received from the server.
+
+How it works:
+
+- Calculates the total size of the received data: ```size * nmemb```.
+- Appends this data to the ```std::string``` object pointed to by ```userdata```.
+- Returns the total size of processed data to let ```libcurl``` know the data was handled.
+
+**Callback function for downloading progress**
+
+```
+int perform_progress(void* ptr, double download_size, double downloaded, double upload_size, double uploaded)
+{
+    CurlEasyHandle* progData = (CurlEasyHandle*)ptr;
+    std::cout << "Downloaded " << progData->url << ": " << downloaded << " bytes" << std::endl;
+
+    return 0;
+}
+```
+
+Purpose: Tracks the download progress for each URL.
+
+How it works:
+
+- Prints the number of bytes downloaded for the URL.
+- Returning ```0``` signals ```libcurl``` to continue the download.
+- Returning non-zero would stop it.
+
+**Define a list of URLs**
+
+```
+const std::vector<std::string> urls = {
+    "http://www.example.com",
+    "http://www.google.com",
+    "http://www.bing.com",
+    "http://www.speedtest.net",
+};
+```
+
+**Initialize libcurl**
+
+```
+CURLM* curl_multi;
+int running_status;
+
+curl_global_init(CURL_GLOBAL_DEFAULT);
+curl_multi = curl_multi_init();
+```
+
+Purpose: Prepares libcurl for multi-handle operations.
+
+Details:
+
+- ```curl_global_init()```: Initializes global resources for libcurl.
+- ```curl_multi_init()```: Creates a multi-handle for managing multiple simultaneous HTTP requests.
+
+**Create Easy Handles and add to Multi Handle**
+
+```
+std::vector<CurlEasyHandle> easy_handles(urls.size());
+for (int i = 0; i < urls.size(); i++)
+{
+    easy_handles[i].easy_handle = curl_easy_init();
+    easy_handles[i].url = urls[i];
+
+    curl_easy_setopt(easy_handles[i].easy_handle, CURLOPT_URL, urls[i].c_str());
+    curl_easy_setopt(easy_handles[i].easy_handle, CURLOPT_WRITEFUNCTION, perform_callback);
+    curl_easy_setopt(easy_handles[i].easy_handle, CURLOPT_WRITEDATA, &easy_handles[i].data);
+    curl_easy_setopt(easy_handles[i].easy_handle, CURLOPT_NOPROGRESS, 0L);
+    curl_easy_setopt(easy_handles[i].easy_handle, CURLOPT_PROGRESSFUNCTION, perform_progress);
+    curl_easy_setopt(easy_handles[i].easy_handle, CURLOPT_PROGRESSDATA, &easy_handles[i]);
+
+    curl_multi_add_handle(curl_multi, easy_handles[i].easy_handle);
+}
+```
+
+Purpose: Creates and configures an easy handle for each URL, then adds it to the multi-handle.
+
+Steps:
+
+- Initialize a new easy handle using ```curl_easy_init()```.
+- Configure each handle with:
+  - The URL to fetch (```CURLOPT_URL```).
+  - A callback for handling response data (```CURLOPT_WRITEFUNCTION```).
+  - A pointer to the data storage (```CURLOPT_WRITEDATA```).
+  - Progress monitoring options (```CURLOPT_NOPROGRESS```, ```CURLOPT_PROGRESSFUNCTION```, ```CURLOPT_PROGRESSDATA```).
+- Add the easy handle to the multi-handle with ```curl_multi_add_handle()```.
+
+**Perform Multi Handle request**
+
+```
+curl_multi_perform(curl_multi, &running_status);
+
+do
+{
+    int curl_multi_fds;
+    CURLMcode rc = curl_multi_perform(curl_multi, &running_status);
+    if (rc == CURLM_OK)
+    {
+        rc = curl_multi_wait(curl_multi, nullptr, 0, 1000, &curl_multi_fds);
+    }
+
+    if (rc != CURLM_OK)
+    {
+        std::cerr << "curl_multi failed, code " << rc << std::endl;
+        break;
+    }
+} while (running_status);
+```
+
+Purpose: Executes all HTTP requests simultaneously.
+
+How it works:
+
+- Starts the ```HTTP``` requests with ```curl_multi_perform()```.
+- Continuously calls ```curl_multi_perform()``` in a loop until all requests are complete (running_status becomes 0).
+- Uses ```curl_multi_wait()``` to wait for events (data availability) to avoid busy-waiting.
+
+**Save data and clean up**
+
+```
+for (CurlEasyHandle& handle : easy_handles)
+{
+    std::string filename = handle.url.substr(11, handle.url.find_last_of(".") - handle.url.find_first_of(".") - 1) + ".html";
+    std::ofstream file(filename);
+    if (file.is_open())
+    {
+        file << handle.data;
+        file.close();
+        std::cout << "Data written to " << filename << std::endl;
+    }
+
+    curl_multi_remove_handle(curl_multi, handle.easy_handle);
+    curl_easy_cleanup(handle.easy_handle);
+}
+
+curl_multi_cleanup(curl_multi);
+curl_global_cleanup();
+```
+
+Purpose: Saves the response data to files, then cleans up resources.
+
+Steps:
+
+- For each handle:
+  - Create a filename based on the ```URL```.
+  - Save the response data to the file.
+  - Remove the handle from the multi-handle (```curl_multi_remove_handle()```).
+- Clean up the handle (```curl_easy_cleanup()```).
+- Clean up the multi-handle (```curl_multi_cleanup()```) and global resources (```curl_global_cleanup()```).
+
+**Result**:
+
+```
+ncmv@localhost:~/study_workspace/LinuxNetworkProgramming/01_networking_libraries/libcurl/build$ ./curl_multi_handle 
+
+...
+Downloaded http://www.speedtest.net: 167 bytes
+...
+Downloaded http://www.bing.com: 53057 bytes
+...
+Downloaded http://www.google.com: 57709 bytes
+...
+Downloaded http://www.example.com: 1256 bytes
+...
+Data written to example.html
+Data written to google.html
+Data written to bing.html
+Data written to speedtest.html
 ```
 
 Full source code of curl multiple handles example [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/01_networking_libraries/libcurl/src/curl_multi_handle.cpp).
 
 ### Curl Multithreading
 
-```
+**Include necessary headers**
 
 ```
+#include <iostream>
+#include <thread>
+#include <vector>
+#include <fstream>
+#include <curl/curl.h>
+```
+
+**Define structures**
+
+```
+struct ProgressData
+{
+    std::string url;
+    double lastProgress;
+};
+```
+
+Purpose: Stores progress information for each download.
+
+Members:
+
+- ```std::string url```: The URL being downloaded.
+- ```double lastProgress```: The last recorded progress (in bytes) for this URL.
+
+**Callback function for receiving HTTP response**
+
+```
+std::size_t perform_callback(char* ptr, std::size_t size, std::size_t nmemb, void* userdata)
+{
+    std::string* str = static_cast<std::string*>(userdata);
+    std::size_t total_size = size * nmemb;
+    str->append(ptr, total_size);
+    return total_size;
+}
+```
+
+Purpose: Handles data received from the server during an ```HTTP``` request.
+
+Details:
+
+- Appends received data to a ```std::string``` provided as userdata.
+- Returns the size of the data to confirm successful processing.
+
+**Callback function for downloading progress**
+
+```
+int perform_progress(void* ptr, double download_size, double downloaded, double upload_size, double uploaded)
+{
+    ProgressData* progData = (ProgressData*)ptr;
+
+    if (downloaded - progData->lastProgress >= 1024.0)
+    {
+        std::cout << "Download " << progData->url << ": " << downloaded << " bytes" << std::endl;
+        progData->lastProgress = downloaded;
+    }
+
+    return 0;
+}
+```
+
+Purpose: Tracks and displays download progress for a specific URL.
+
+Details:
+
+- Checks if at least 1 KB (1024 bytes) of new data has been downloaded since the last update.
+- Prints the progress and updates lastProgress.
+
+**Function to perform HTTP request**
+
+```
+void perform_request(const std::string& url)
+{
+    CURL* curl;
+    CURLcode res;
+
+    curl = curl_easy_init();
+    if (curl != nullptr)
+    {
+        std::string data;
+        ProgressData progData;
+        progData.url = url;
+        progData.lastProgress = 0.0;
+
+        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+        curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, perform_callback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &data);
+        curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
+        curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, perform_progress);
+        curl_easy_setopt(curl, CURLOPT_PROGRESSDATA, &progData);
+
+        res = curl_easy_perform(curl);
+        if (res == CURLE_OK)
+        {
+            std::string filename = url.substr(11, url.find_last_of(".") - url.find_first_of(".") - 1) + ".html";
+            std::ofstream file(filename);
+            if (file.is_open())
+            {
+                file << data;
+                file.close();
+                std::cout << "Data written to " << filename << std::endl;
+            }
+        }
+    }
+}
+```
+
+Purpose: Performs an ```HTTP``` request to download the content of a given ```URL```.
+
+Steps:
+
+- Initializes a CURL easy handle.
+- Sets up callbacks for data writing (```perform_callback```) and progress tracking (```perform_progress```).
+- Executes the request using ```curl_easy_perform()```.
+
+On success:
+
+- Saves the downloaded data to a file named after the ```URL```.
+
+**Set up multithreading HTTP perform**
+
+```
+curl_global_init(CURL_GLOBAL_ALL);
+
+std::vector<std::thread> threads;
+std::vector<std::string> urls = {
+    "http://www.example.com",
+    "http://www.google.com",
+    "http://www.bing.com",
+    "http://www.speedtest.net",
+};
+
+for (const std::string& url : urls)
+{
+    threads.push_back(std::thread(perform_request, url));
+}
+
+for (std::thread& t : threads)
+{
+    t.join();
+}
+
+curl_global_cleanup();
+```
+
+Details:
+
+- ```curl_global_init(CURL_GLOBAL_ALL)```: Prepares libcurl for multi-threaded operations.
+- Creates a vector to store thread objects and another to store the list of URLs.
+- For each URL, creates a new thread to execute ```perform_request()```.
+- Ensures all threads complete before the program exits using ```join()``` method.
+- ```curl_global_cleanup()```: Releases resources allocated by ```libcurl```.
 
 Full source code of basic curl multithreading [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/01_networking_libraries/libcurl/src/curl_multithreaded.cpp).
 
