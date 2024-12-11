@@ -1786,8 +1786,136 @@ curl -u demo:password sftp://localhost/home/ncmv/study_workspace/temp -O temp
 
 ### Basic Curl
 
+**Include necessary headers**
+
+```
+#include <iostream>
+#include <curl/curl.h>
 ```
 
+**Callback function for receiving HTTP response**
+
+```
+size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *userp)
+{
+    size_t total_size = size * nmemb;
+    ((std::string*)userp)->append((char*)contents, total_size);
+    return total_size;
+}
+```
+
+Purpose: This function handles data received from the server during the HTTP request.
+
+Parameters:
+
+```contents```: A pointer to the data received.
+
+```size``` and ```nmemb```: Together, they specify the size of the received data (in bytes).
+
+```userp```: A user-provided pointer to store the received data (in this case, a std::string).
+
+What it does:
+
+Calculates the total size of the data: size * nmemb. Appends the received data (converted to a string) to the ```std::string``` object passed in ```userp```. Returns the total size of the data to let libcurl know how much data was processed.
+
+**Check libcurl version**
+
+```
+curl_version_info_data* info = curl_version_info(CURLVERSION_NOW);
+if (info)
+{
+    std::cout << "libcurl version: " << info->version << std::endl;
+    std::cout << "SSL version: " << info->ssl_version << std::endl;
+    std::cout << "Libz version: " << info->libz_version << std::endl;
+    std::cout << "Features: " << info->features << std::endl;
+
+    const char *const *protocols = info->protocols;
+    if (protocols)
+    {
+        std::cout << "Supported protocols: ";
+        for (int i = 0; protocols[i] != NULL; ++i)
+        {
+            std::cout << protocols[i] << " ";
+        }
+        std::cout << std::endl;
+    }
+}
+else
+{
+    std::cerr << "Failed to get libcurl version info." << std::endl;
+}
+```
+
+Purpose: Displays the version information and features supported by ```libcurl```.
+
+How it works:
+
+Calls ```curl_version_info(CURLVERSION_NOW)``` to get information about the current version of ```libcurl```.
+
+Prints the version, ```SSL``` support, compression library (```Libz```), and the supported protocols (```HTTP```, ```HTTPS```, ```FTP```, ...).
+
+**Initialize libcurl**
+
+```
+CURL *curl;
+CURLcode res;
+std::string readBuffer;
+
+curl = curl_easy_init();
+```
+
+Details:
+
+```CURL *curl```: A handle to manage the HTTP session.
+
+```curl_easy_init()```: Initializes the handle. If successful, curl will not be NULL.
+
+**Set libcurl options**
+
+```
+curl_easy_setopt(curl, CURLOPT_URL, "http://httpstat.us/200");
+curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
+```
+
+Purpose: Configures options for the HTTP request.
+
+Options:
+
+```CURLOPT_URL```: Sets the URL to request.
+
+```CURLOPT_WRITEFUNCTION```: Specifies the callback function (```WriteCallback```) to handle the response data.
+
+```CURLOPT_WRITEDATA```: Provides the ```std::string``` object (```readBuffer```) where the response data will be stored.
+
+**Perform HTTP request**
+
+```
+res = curl_easy_perform(curl);
+```
+
+```curl_easy_perform(curl)```: Executes the HTTP request with the options set earlier.
+
+**Clean up**
+
+```
+curl_easy_cleanup(curl);
+```
+
+Frees resources used by ```curl```. Always call this after finishing with ```curl```.
+
+**Result**:
+
+```
+ncmv@localhost:~/study_workspace/LinuxNetworkProgramming/01_networking_libraries/libcurl/build$ ./basic_curl 
+
+libcurl version: 8.5.0
+SSL version: OpenSSL/3.0.13
+Libz version: 1.3
+Features: 1438599069
+Supported protocols: dict file ftp ftps gopher gophers http https imap imaps ldap ldaps mqtt pop3 pop3s rtmp rtmpe rtmps rtmpt rtmpte rtmpts rtsp scp sftp smb smbs smtp smtps telnet tftp 
+
+Response data: 200 OK
 ```
 
 Full source code of basic curl example [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/01_networking_libraries/libcurl/src/basic_curl.cpp).
