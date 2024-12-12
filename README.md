@@ -55,6 +55,8 @@
     - [Curl Multiple Handles](#curl-multiple-handles)
     - [Curl Multithreading](#curl-multithreading)
   - [Secure Networking with OpenSSL](#secure-networking-with-openssl)
+    - [A HTTPs Client](#a-https-client)
+    - [Secure Client-Server](#secure-client-server)
 - [Conclusion](#conclusion)
 
 
@@ -2287,6 +2289,20 @@ Details:
 Full source code of basic curl multithreading [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/01_networking_libraries/libcurl/src/curl_multithreaded.cpp).
 
 ## Secure Networking with OpenSSL
+
+
+
+### A HTTPs Client
+
+```
+
+```
+
+### Secure Client-Server
+
+```
+
+```
 
 # Conclusion
 

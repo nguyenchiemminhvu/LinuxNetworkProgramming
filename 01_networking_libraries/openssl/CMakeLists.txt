@@ -17,3 +17,5 @@ function(compile_executables target_name file_path)
     )
 endfunction()
 
+compile_executables(https_client ${CMAKE_CURRENT_SOURCE_DIR}/src/https_client.cpp)
+compile_executables(ssl_client_server ${CMAKE_CURRENT_SOURCE_DIR}/src/ssl_client_server.cpp)
