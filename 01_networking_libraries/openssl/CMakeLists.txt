@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.11...3.20)
-project(CurlExamples)
+project(OpenSSLExamples)
 
 set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_CXX_STANDARD 17)
@@ -14,6 +14,8 @@ function(compile_executables target_name file_path)
         PRIVATE
             CURL::libcurl
             Threads::Threads
+            ssl
+            crypto
     )
 endfunction()
 
