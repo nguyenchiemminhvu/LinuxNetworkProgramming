@@ -19,5 +19,14 @@ function(compile_executables target_name file_path)
     )
 endfunction()
 
+add_custom_target(copy_certificates ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_SOURCE_DIR}/certificate
+    ${CMAKE_BINARY_DIR}/
+    COMMENT "Copying certificate files to build directory"
+)
+
 compile_executables(https_client ${CMAKE_CURRENT_SOURCE_DIR}/src/https_client.cpp)
+
 compile_executables(ssl_client_server ${CMAKE_CURRENT_SOURCE_DIR}/src/ssl_client_server.cpp)
+add_dependencies(ssl_client_server copy_certificates)

@@ -12,11 +12,17 @@
 #include <errno.h>
 #include <sys/poll.h>
 
+#include <openssl/err.h>
+#include <openssl/ssl.h>
+
 #define PROTOCOL "tcp"
-#define TCP_PORT 45123
+#define TCP_PORT 4443
 #define MESSAGE_SIZE 1024
 #define HOST_NAME "localhost"
 #define MAX_CONNECTION 100
+
+#define SERVER_CERT_FILE "server.crt"
+#define SERVER_KEY_FILE "server.key"
 
 void print_usage(const char *program_name)
 {
@@ -25,7 +31,42 @@ void print_usage(const char *program_name)
 
 void report_error(const char* message)
 {
-    fprintf(stderr, "Error: %s\n", message);
+    fprintf(stderr, "%ld: Error: %s\n", time(NULL), message);
+}
+
+void print_sockaddr_info(sockaddr *sa)
+{
+    char ip[INET6_ADDRSTRLEN];
+    memset(ip, 0, INET6_ADDRSTRLEN);
+
+    void *addr;
+    int port;
+
+    if (sa->sa_family == AF_INET)
+    {
+        struct sockaddr_in *sin = (struct sockaddr_in *)sa;
+        addr = &(sin->sin_addr);
+        port = ntohs(sin->sin_port);
+    }
+    else if (sa->sa_family == AF_INET6)
+    {
+        struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sa;
+        addr = &(sin6->sin6_addr);
+        port = ntohs(sin6->sin6_port);
+    }
+    else
+    {
+        report_error("Unknown address family");
+        return;
+    }
+
+    if (inet_ntop(sa->sa_family, addr, ip, sizeof(ip)) == NULL)
+    {
+        report_error("inet_ntop() failed");
+        return;
+    }
+
+    printf("%s:%d\n", ip, port);
 }
 
 void set_non_blocking(int socket)
@@ -46,6 +87,245 @@ void set_non_blocking(int socket)
 void run_server()
 {
     int rc;
+
+    protoent* tcp_proto = getprotobyname(PROTOCOL);
+    if (tcp_proto == NULL)
+    {
+        report_error("TCP protocol is not supported");
+        return;
+    }
+
+    char port_server[6];
+    memset(port_server, 0, 6);
+    sprintf(port_server, "%d", TCP_PORT);
+
+    addrinfo hints;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = tcp_proto->p_proto;
+    hints.ai_flags = AI_PASSIVE;
+    addrinfo* addr_server;
+    rc = getaddrinfo(HOST_NAME, port_server, &hints, &addr_server);
+    if (rc != 0)
+    {
+        report_error("Server getaddrinfo() failed");
+        return;
+    }
+
+    int sock_server = socket(addr_server->ai_family, addr_server->ai_socktype, addr_server->ai_protocol);
+    if (sock_server < 0)
+    {
+        report_error("Server socket() failed");
+        freeaddrinfo(addr_server);
+        return;
+    }
+
+    set_non_blocking(sock_server);
+
+    for (addrinfo* p = addr_server; p != NULL; p = p->ai_next)
+    {
+        print_sockaddr_info(p->ai_addr);
+        rc = bind(sock_server, p->ai_addr, p->ai_addrlen);
+        if (rc == 0)
+        {
+            break;
+        }
+    }
+
+    if (rc != 0)
+    {
+        report_error("Server bind() failed");
+        freeaddrinfo(addr_server);
+        close(sock_server);
+        return;
+    }
+
+    rc = listen(sock_server, MAX_CONNECTION);
+    if (rc != 0)
+    {
+        report_error("Server listen() failed");
+        freeaddrinfo(addr_server);
+        close(sock_server);
+        return;
+    }
+
+    SSL_load_error_strings();
+    SSL_library_init();
+
+    const SSL_METHOD* p_ssl_method = TLS_server_method();
+    SSL_CTX* p_ssl_context = SSL_CTX_new(p_ssl_method);
+    if (p_ssl_context == NULL)
+    {
+        report_error("Server is unable to create SSL context");
+        ERR_print_errors_fp(stderr);
+        freeaddrinfo(addr_server);
+        close(sock_server);
+        return;
+    }
+
+    rc = SSL_CTX_use_certificate_file(p_ssl_context, SERVER_CERT_FILE, SSL_FILETYPE_PEM);
+    if (rc <= 0)
+    {
+        report_error("Server SSL_CTX_use_certificate_file() failed");
+        ERR_print_errors_fp(stderr);
+        SSL_CTX_free(p_ssl_context);
+        freeaddrinfo(addr_server);
+        close(sock_server);
+        return;
+    }
+
+    rc = SSL_CTX_use_PrivateKey_file(p_ssl_context, SERVER_KEY_FILE, SSL_FILETYPE_PEM);
+    if (rc <= 0)
+    {
+        report_error("Server SSL_CTX_use_PrivateKey_file() failed");
+        ERR_print_errors_fp(stderr);
+        SSL_CTX_free(p_ssl_context);
+        freeaddrinfo(addr_server);
+        close(sock_server);
+        return;
+    }
+
+    SSL* arr_ssl[MAX_CONNECTION];
+    pollfd fds[MAX_CONNECTION];
+    memset(arr_ssl, NULL, sizeof(SSL*) * MAX_CONNECTION);
+    memset(&fds, 0, sizeof(pollfd) * MAX_CONNECTION);
+    int nfds = 1;
+    fds[0].fd = sock_server;
+    fds[0].events = POLLIN;
+
+    // Server Loop
+    char request_buffer[MESSAGE_SIZE];
+    char response_buffer[MESSAGE_SIZE];
+    while (true)
+    {
+        int activity = poll(fds, nfds, -1);
+        if (activity <= 0)
+        {
+            report_error("Server poll() failed");
+            break;
+        }
+
+        if (fds[0].revents & POLLIN)
+        {
+            sockaddr addr_client;
+            socklen_t addr_client_len = sizeof(sockaddr);
+            int sock_client = accept(fds[0].fd, &addr_client, &addr_client_len);
+            if (sock_client > 0)
+            {
+                char ip_client[NI_MAXHOST];
+                char port_client[NI_MAXSERV];
+                rc = getnameinfo(&addr_client, addr_client_len, ip_client, NI_MAXHOST, port_client, NI_MAXSERV, NI_NUMERICHOST | NI_NUMERICSERV);
+                if (rc == 0)
+                {
+                    printf("Client %d is connected %s:%s\n", sock_client, ip_client, port_client);
+                }
+
+                if (nfds < MAX_CONNECTION)
+                {
+                    if (fds[nfds].fd == 0)
+                    {
+                        fds[nfds].fd = sock_client;
+                        fds[nfds].events = POLLIN;
+                        arr_ssl[nfds] = SSL_new(p_ssl_context);
+                        SSL_set_fd(arr_ssl[nfds], fds[nfds].fd);
+
+                        rc = SSL_accept(arr_ssl[nfds]);
+                        if (rc <= 0)
+                        {
+                            report_error("Server SSL_accept() failed");
+                            ERR_print_errors_fp(stderr);
+
+                            close(fds[nfds].fd);
+                            fds[nfds].fd = 0;
+
+                            SSL_shutdown(arr_ssl[nfds]);
+                            SSL_free(arr_ssl[nfds]);
+                            arr_ssl[nfds] = NULL;
+                        }
+                        else
+                        {
+                            nfds++;
+                        }
+                    }
+                }
+            }
+        }
+
+        for (int i = 1; i < nfds; i++)
+        {
+            if (fds[i].fd > 0 && fds[i].revents & POLLIN)
+            {
+                memset(request_buffer, 0, MESSAGE_SIZE);
+                int received_bytes = SSL_read(arr_ssl[i], request_buffer, MESSAGE_SIZE);
+                
+                bool should_disconnect = false;
+                if (received_bytes <= 0)
+                {
+                    if (received_bytes < 0)
+                    {
+                        report_error("Server SSL_read() failed");
+                    }
+                    else
+                    {
+                        printf("Client %d is disconnected\n", fds[i].fd);
+                    }
+                    should_disconnect = true;
+                }
+
+                if (strcmp(request_buffer, "quit") == 0 || strcmp(request_buffer, "exit") == 0)
+                {
+                    should_disconnect = true;
+                }
+
+                if (should_disconnect)
+                {
+                    close(fds[i].fd);
+                    SSL_shutdown(arr_ssl[i]);
+                    SSL_free(arr_ssl[i]);
+
+                    fds[i].fd = fds[nfds - 1].fd;
+                    fds[i].events = fds[nfds - 1].events;
+                    arr_ssl[i] = arr_ssl[nfds - 1];
+                    nfds--;
+                    i--;
+
+                    continue;
+                }
+
+                request_buffer[received_bytes] = 0;
+                printf("Server received %d request: %s\n", fds[i].fd, request_buffer);
+
+                memset(response_buffer, 0, MESSAGE_SIZE);
+                sprintf(response_buffer, "Server time: %ld", time(NULL));
+
+                int sent_bytes = SSL_write(arr_ssl[i], response_buffer, strlen(response_buffer));
+                if (sent_bytes <= 0)
+                {
+                    report_error("Server SSL_write() failed");
+                }
+            }
+        }
+    }
+
+    freeaddrinfo(addr_server);
+    close(sock_server);
+
+    SSL_CTX_free(p_ssl_context);
+    for (int i = 1; i < nfds; i++)
+    {
+        if (fds[i].fd > 0)
+        {
+            close(fds[i].fd);
+        }
+        
+        if (arr_ssl[i] != NULL)
+        {
+            SSL_shutdown(arr_ssl[i]);
+            SSL_free(arr_ssl[i]);
+            arr_ssl[i] = NULL;
+        }
+    }
 }
 
 void run_client()

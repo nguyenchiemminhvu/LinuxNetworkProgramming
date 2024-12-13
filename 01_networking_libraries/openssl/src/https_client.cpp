@@ -112,7 +112,7 @@ void perform_https_request(char* hostname, char* port)
     }
 
     SSL_load_error_strings();
-    OpenSSL_add_ssl_algorithms();
+    SSL_library_init();
 
     const SSL_METHOD* ssl_method = TLS_client_method();
     SSL_CTX* ssl_context = SSL_CTX_new(ssl_method);
@@ -174,9 +174,9 @@ void perform_https_request(char* hostname, char* port)
 
     freeaddrinfo(addr_server);
     close(sock_client);
-    SSL_free(ssl);
     SSL_CTX_free(ssl_context);
-    EVP_cleanup();
+    SSL_shutdown(ssl);
+    SSL_free(ssl);
 }
 
 int main(int argc, char** argv)
