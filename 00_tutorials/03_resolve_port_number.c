@@ -6,7 +6,7 @@
 
 int main()
 {
-    servent* service_info;
+    struct servent* service_info;
     service_info = getservbyname("http", getprotobyname("tcp")->p_name);
     if (service_info == NULL)
     {

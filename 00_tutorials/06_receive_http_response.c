@@ -17,13 +17,13 @@ void on_func_failure(const char* message)
 
 int main()
 {
-    protoent* p_proto_ent = getprotobyname("tcp");
+    struct protoent* p_proto_ent = getprotobyname("tcp");
     if (p_proto_ent == NULL)
     {
         on_func_failure("TCP protocol is not available");
     }
 
-    servent* p_service_ent = getservbyname("http", p_proto_ent->p_name);
+    struct servent* p_service_ent = getservbyname("http", p_proto_ent->p_name);
     if (p_service_ent == NULL)
     {
         on_func_failure("HTTP service is not available");
@@ -33,13 +33,13 @@ int main()
     memset(port_buffer, 0, sizeof(port_buffer));
     sprintf(port_buffer, "%d", ntohs(p_service_ent->s_port));
 
-    addrinfo hints;
+    struct addrinfo hints;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_protocol = p_proto_ent->p_proto;
     hints.ai_socktype = SOCK_STREAM;
 
-    addrinfo* server_addr;
+    struct addrinfo* server_addr;
     int rc = getaddrinfo(CPP_HOSTNAME, port_buffer, &hints, &server_addr);
     if (rc != 0)
     {
@@ -53,7 +53,7 @@ int main()
         on_func_failure("socket() failed");
     }
 
-    rc = connect(sock_fd, server_addr->ai_addr, sizeof(sockaddr));
+    rc = connect(sock_fd, server_addr->ai_addr, sizeof(struct sockaddr));
     if (rc != 0)
     {
         freeaddrinfo(server_addr);

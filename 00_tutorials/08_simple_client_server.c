@@ -4,18 +4,14 @@
 #include <string.h>
 #include <stdlib.h>
 #include <arpa/inet.h>
-#include <netinet/in.h>
 #include <netdb.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
-
-#include <pthread.h>
 
 #define PROTOCOL "tcp"
 #define TCP_PORT 45123
 #define MESSAGE_SIZE 1024
 #define HOST_NAME "localhost"
-#define MAX_CONNECTION 100
 
 void print_usage(const char *program_name)
 {
@@ -27,71 +23,11 @@ void report_error(const char* message)
     fprintf(stderr, "Error: %s\n", message);
 }
 
-void* server_handle_client(void* arg)
-{
-    int* sock_client = ((int*)arg);
-    if (sock_client == NULL)
-    {
-        return NULL;
-    }
-
-    int rc;
-    char request_buffer[MESSAGE_SIZE];
-    char response_buffer[MESSAGE_SIZE];
-    while (true)
-    {
-        memset(request_buffer, 0, MESSAGE_SIZE);
-        memset(response_buffer, 0, MESSAGE_SIZE);
-
-        int received_bytes = recv(*sock_client, request_buffer, MESSAGE_SIZE, 0);
-        if (received_bytes <= 0)
-        {
-            report_error("Client is disconnected");
-            break;
-        }
-        request_buffer[received_bytes] = '\0';
-
-        printf("Client %d requests: %s\n", *sock_client, request_buffer);
-
-        if (strcmp(request_buffer, "exit") == 0
-        || strcmp(request_buffer, "quit") == 0
-        || strcmp(request_buffer, "shutdown") == 0)
-        {
-            sprintf(response_buffer, "OK");
-            rc = send(*sock_client, response_buffer, MESSAGE_SIZE, 0);
-            close(*sock_client);
-            break;
-        }
-        else if (strcmp(request_buffer, "time") == 0)
-        {
-            sprintf(response_buffer, "%d", time(NULL));
-            rc = send(*sock_client, response_buffer, MESSAGE_SIZE, 0);
-        }
-        else
-        {
-            sprintf(response_buffer, "Unknown request");
-            rc = send(*sock_client, response_buffer, MESSAGE_SIZE, 0);
-        }
-
-        if (rc <= 0)
-        {
-            report_error("Server send() failed");
-        }
-    }
-
-    if (sock_client != NULL)
-    {
-        free(sock_client);
-    }
-
-    return NULL;
-}
-
 void run_server()
 {
     int rc;
 
-    protoent* tcp_proto = getprotobyname(PROTOCOL);
+    struct protoent* tcp_proto = getprotobyname(PROTOCOL);
     if (tcp_proto == NULL)
     {
         report_error("TCP protocol is not supported");
@@ -102,13 +38,13 @@ void run_server()
     memset(server_port, 0, 6);
     sprintf(server_port, "%d", htons(TCP_PORT));
 
-    addrinfo hints;
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_protocol = tcp_proto->p_proto;
-    addrinfo* addr_server;
-    rc = getaddrinfo(NULL, server_port, &hints, &addr_server);
+    struct addrinfo addr_hints;
+    memset(&addr_hints, 0, sizeof(addr_hints));
+    addr_hints.ai_family = AF_INET;
+    addr_hints.ai_socktype = SOCK_STREAM;
+    addr_hints.ai_protocol = tcp_proto->p_proto;
+    struct addrinfo* addr_server;
+    rc = getaddrinfo(NULL, server_port, &addr_hints, &addr_server);
     if (rc != 0)
     {
         report_error("Can not resolve server hostname");
@@ -130,7 +66,7 @@ void run_server()
         report_error("Server setsockopt() failed");
     }
 
-    for (addrinfo* p_server = addr_server; p_server != NULL; p_server = p_server->ai_next)
+    for (struct addrinfo* p_server = addr_server; p_server != NULL; p_server = p_server->ai_next)
     {
         rc = bind(sock_server, p_server->ai_addr, p_server->ai_addrlen);
         if (rc == 0)
@@ -142,71 +78,100 @@ void run_server()
     if (rc != 0)
     {
         report_error("Server bind() failed");
-        freeaddrinfo(addr_server);
         close(sock_server);
+        freeaddrinfo(addr_server);
         return;
     }
 
-    rc = listen(sock_server, MAX_CONNECTION);
+    rc = listen(sock_server, 3);
     if (rc < 0)
     {
         report_error("Server listen() failed");
-        freeaddrinfo(addr_server);
         close(sock_server);
+        freeaddrinfo(addr_server);
         return;
     }
 
     // server loop
-    while (true)
+    int sock_client = -1;
+    while (1)
     {
         printf("Server is ready to process new request\n");
-
-        sockaddr addr_client;
-        socklen_t addr_client_len = sizeof(addr_client);
-        int sock_client = accept(sock_server, &addr_client, &addr_client_len);
+        
+        struct sockaddr addr_client;
+        socklen_t addr_len = sizeof(addr_client);
+        sock_client = accept(sock_server, (struct sockaddr*)&addr_client, &addr_len);
         if (sock_client < 0)
         {
             report_error("Server accept() failed");
             continue;
         }
 
-        char ip_client[NI_MAXHOST];
-        char service_client[NI_MAXSERV];
-        rc = getnameinfo(&addr_client, addr_client_len, ip_client, sizeof(ip_client), service_client, sizeof(service_client), NI_NUMERICHOST | NI_NUMERICSERV);
+        char client_host[NI_MAXHOST];
+        char client_service[NI_MAXSERV];
+        rc = getnameinfo(&addr_client, addr_len, client_host, sizeof(client_host), client_service, sizeof(client_service), NI_NUMERICHOST | NI_NUMERICSERV);
         if (rc == 0)
         {
-            printf("Server accepted client connection %s:%s\n", ip_client, service_client);
+            printf("Server accepted client connection %s:%s\n", client_host, client_service);
         }
 
-        int* p_sock_client = (int*)calloc(1, sizeof(int));
-        *p_sock_client = sock_client;
-        pthread_t client_thread;
-        rc = pthread_create(&client_thread, NULL, server_handle_client, p_sock_client);
-        if (rc != 0)
+        char request_buffer[MESSAGE_SIZE];
+        char response_buffer[MESSAGE_SIZE];
+        while (1)
         {
-            report_error("Server create thread for new client failed");
-            continue;
-        }
+            memset(request_buffer, 0, MESSAGE_SIZE);
+            memset(response_buffer, 0, MESSAGE_SIZE);
 
-        rc = pthread_detach(client_thread);
-        if (rc != 0)
-        {
-            report_error("Detach client thread failed");
+            int received_bytes = recv(sock_client, request_buffer, MESSAGE_SIZE, 0);
+            if (received_bytes <= 0)
+            {
+                report_error("Client is disconnected\n");
+                break;
+            }
+            request_buffer[received_bytes] = '\0';
+
+            printf("Received client request: %s\n", request_buffer);
+
+            if (strcmp(request_buffer, "exit") == 0
+            || strcmp(request_buffer, "quit") == 0
+            || strcmp(request_buffer, "shutdown") == 0)
+            {
+                sprintf(response_buffer, "OK");
+                rc = send(sock_client, response_buffer, MESSAGE_SIZE, 0);
+                close(sock_client);
+                break;
+            }
+            else if (strcmp(request_buffer, "time") == 0)
+            {
+                sprintf(response_buffer, "%d", time(NULL));
+                rc = send(sock_client, response_buffer, MESSAGE_SIZE, 0);
+            }
+            else
+            {
+                sprintf(response_buffer, "Unknown request");
+                rc = send(sock_client, response_buffer, MESSAGE_SIZE, 0);
+            }
+
+            if (rc <= 0)
+            {
+                report_error("Server send() failed");
+            }
         }
     }
 
-    freeaddrinfo(addr_server);
     close(sock_server);
+    freeaddrinfo(addr_server);
+    printf("Server exit with normal status\n");
 }
 
 void run_client()
 {
     int rc;
 
-    protoent* tcp_proto = getprotobyname(PROTOCOL);
+    struct protoent* tcp_proto = getprotobyname(PROTOCOL);
     if (tcp_proto == NULL)
     {
-        report_error("TCP protocol is not available");
+        report_error("TCP protocol is not supported");
         return;
     }
 
@@ -214,28 +179,28 @@ void run_client()
     memset(server_port, 0, 6);
     sprintf(server_port, "%d", htons(TCP_PORT));
 
-    addrinfo hints;
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_protocol = tcp_proto->p_proto;
-    addrinfo* addr_server;
-    rc = getaddrinfo(HOST_NAME, server_port, &hints, &addr_server);
+    struct addrinfo addr_hints;
+    memset(&addr_hints, 0, sizeof(addr_hints));
+    addr_hints.ai_family = AF_INET;
+    addr_hints.ai_socktype = SOCK_STREAM;
+    addr_hints.ai_protocol = tcp_proto->p_proto;
+    struct addrinfo* addr_server;
+    rc = getaddrinfo(HOST_NAME, server_port, &addr_hints, &addr_server);
     if (rc != 0)
     {
-        report_error("Can not resolve hostname");
+        report_error("Failed to resolve hostname");
         return;
     }
 
     int sock_client = socket(addr_server->ai_family, addr_server->ai_socktype, addr_server->ai_protocol);
     if (sock_client < 0)
     {
-        report_error("Client socket() failed");
+        report_error("client socket() failed");
         freeaddrinfo(addr_server);
         return;
     }
 
-    for (addrinfo* p_server = addr_server; p_server != NULL; p_server = p_server->ai_next)
+    for (struct addrinfo* p_server = addr_server; p_server != NULL; p_server = p_server->ai_next)
     {
         rc = connect(sock_client, p_server->ai_addr, p_server->ai_addrlen);
         if (rc == 0)
@@ -246,28 +211,29 @@ void run_client()
 
     if (rc != 0)
     {
-        report_error("Client connect() failed");
-        freeaddrinfo(addr_server);
+        report_error("client connect() failed");
         close(sock_client);
+        freeaddrinfo(addr_server);
         return;
     }
 
     // client loop
-    while (true)
+    while (1)
     {
-        printf("Client is ready to reate a new request\n");
+        printf("Client is ready to create new request\n");
         char request_buffer[MESSAGE_SIZE];
         memset(request_buffer, 0, MESSAGE_SIZE);
 
         printf("Enter command: ");
         fgets(request_buffer, MESSAGE_SIZE, stdin);
-        request_buffer[strcspn(request_buffer, "\r\n")] = 0;
-
         printf("Request: %s\n", request_buffer);
+
+        // Remove newline character from the request buffer
+        request_buffer[strcspn(request_buffer, "\n")] = 0;
 
         int request_buffer_len = strlen(request_buffer);
         int sent_bytes = send(sock_client, request_buffer, request_buffer_len, 0);
-        if (sent_bytes != request_buffer_len)
+        if (sent_bytes <= 0)
         {
             report_error("Client sent request fail");
             continue;
@@ -293,9 +259,8 @@ void run_client()
         }
     }
 
-    freeaddrinfo(addr_server);
     close(sock_client);
-
+    freeaddrinfo(addr_server);
     printf("Client exit with normal status\n");
 }
 

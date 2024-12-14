@@ -30,7 +30,7 @@ void run_server()
 {
     int rc;
 
-    protoent* udp_protocol = getprotobyname(PROTOCOL);
+    struct protoent* udp_protocol = getprotobyname(PROTOCOL);
     if (udp_protocol == NULL)
     {
         report_error("UDP protocol is not supported");
@@ -41,12 +41,12 @@ void run_server()
     memset(port_server, 0, 6);
     sprintf(port_server, "%d", htons(UDP_PORT));
 
-    addrinfo hints;
+    struct addrinfo hints;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_DGRAM;
     hints.ai_protocol = udp_protocol->p_proto;
-    addrinfo* addr_server;
+    struct addrinfo* addr_server;
     rc = getaddrinfo(NULL, port_server, &hints, &addr_server); // INADDR_ANY
     if (rc != 0)
     {
@@ -62,7 +62,7 @@ void run_server()
         return;
     }
 
-    for (addrinfo* p_server = addr_server; p_server != NULL; p_server = p_server->ai_next)
+    for (struct addrinfo* p_server = addr_server; p_server != NULL; p_server = p_server->ai_next)
     {
         rc = bind(sock_server, p_server->ai_addr, p_server->ai_addrlen);
         if (rc == 0)
@@ -83,13 +83,13 @@ void run_server()
 
     char request_buffer[MESSAGE_SIZE];
     char response_buffer[MESSAGE_SIZE];
-    while (true)
+    while (1)
     {
         memset(request_buffer, 0, MESSAGE_SIZE);
         memset(response_buffer, 0, MESSAGE_SIZE);
 
-        sockaddr addr_client;
-        socklen_t addr_client_len = sizeof(sockaddr);
+        struct sockaddr addr_client;
+        socklen_t addr_client_len = sizeof(struct sockaddr);
         int received_bytes = recvfrom(sock_server, request_buffer, MESSAGE_SIZE, 0, &addr_client, &addr_client_len);
         if (received_bytes <= 0)
         {
@@ -130,7 +130,7 @@ void run_client()
 {
     int rc;
 
-    protoent* udp_protocol = getprotobyname(PROTOCOL);
+    struct protoent* udp_protocol = getprotobyname(PROTOCOL);
     if (udp_protocol == NULL)
     {
         report_error("UDP protocol is not supported");
@@ -141,12 +141,12 @@ void run_client()
     memset(port_server, 0, 6);
     sprintf(port_server, "%d", htons(UDP_PORT));
 
-    addrinfo hints;
+    struct addrinfo hints;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_DGRAM;
     hints.ai_protocol = udp_protocol->p_proto;
-    addrinfo* addr_server;
+    struct addrinfo* addr_server;
     rc = getaddrinfo(HOST_NAME, port_server, &hints, &addr_server);
     if (rc != 0)
     {
@@ -183,7 +183,7 @@ void run_client()
 
     char request_buffer[MESSAGE_SIZE];
     char response_buffer[MESSAGE_SIZE];
-    while (true)
+    while (1)
     {
         memset(request_buffer, 0, MESSAGE_SIZE);
         memset(response_buffer, 0, MESSAGE_SIZE);

@@ -23,21 +23,21 @@ void report_error(const char* message)
     fprintf(stderr, "Error: %s\n", message);
 }
 
-int perform_http_request(const char* host_name, const char* path, char* response = nullptr, int redirect_count = 0)
+int perform_http_request(const char* host_name, const char* path, char* response, int redirect_count)
 {
     if (redirect_count > MAX_REDIRECTION)
     {
         return HTTP_NOT_FOUND;
     }
 
-    protoent* http_proto = getprotobyname("tcp");
+    struct protoent* http_proto = getprotobyname("tcp");
     if (http_proto == NULL)
     {
         report_error("TCP protocol is not supported");
         return HTTP_UNKNOWN;
     }
 
-    servent* http_service = getservbyname("http", http_proto->p_name);
+    struct servent* http_service = getservbyname("http", http_proto->p_name);
     if (http_service == NULL)
     {
         report_error("HTTP service is not available");
@@ -48,12 +48,12 @@ int perform_http_request(const char* host_name, const char* path, char* response
     memset(http_port, 0, 6);
     sprintf(http_port, "%d", ntohs(http_service->s_port));
 
-    addrinfo hints;
+    struct addrinfo hints;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_protocol = http_proto->p_proto;
-    addrinfo* http_addr;
+    struct addrinfo* http_addr;
     int addr_rc = getaddrinfo(host_name, http_port, &hints, &http_addr);
     if (addr_rc != 0)
     {
@@ -72,7 +72,7 @@ int perform_http_request(const char* host_name, const char* path, char* response
         return HTTP_UNKNOWN;
     }
 
-    int con_rc = connect(http_sock, http_addr->ai_addr, sizeof(sockaddr));
+    int con_rc = connect(http_sock, http_addr->ai_addr, sizeof(struct sockaddr));
     if (con_rc != 0)
     {
         report_error("connect() failed");
@@ -152,16 +152,16 @@ int main()
     char http_response[MESSAGE_SIZE];
     memset(http_response, 0, MESSAGE_SIZE);
 
-    (void)perform_http_request(CPP_HOSTNAME, "/200", http_response);
+    (void)perform_http_request(CPP_HOSTNAME, "/200", http_response, 0);
     printf("%s\n", http_response);
 
-    (void)perform_http_request(CPP_HOSTNAME, "/301", http_response);
+    (void)perform_http_request(CPP_HOSTNAME, "/301", http_response, 0);
     printf("%s\n", http_response);
 
-    (void)perform_http_request(CPP_HOSTNAME, "/403", http_response);
+    (void)perform_http_request(CPP_HOSTNAME, "/403", http_response, 0);
     printf("%s\n", http_response);
 
-    (void)perform_http_request(CPP_HOSTNAME, "/404", http_response);
+    (void)perform_http_request(CPP_HOSTNAME, "/404", http_response, 0);
     printf("%s\n", http_response);
 
     return 0;

@@ -16,8 +16,8 @@ int main()
         return -1;
     }
 
-    addrinfo hints;
-    addrinfo* res;
+    struct addrinfo hints;
+    struct addrinfo* res;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
@@ -28,7 +28,7 @@ int main()
         return -1;
     }
 
-    sockaddr server_addr = *(res->ai_addr);
+    struct sockaddr server_addr = *(res->ai_addr);
     freeaddrinfo(res);
 
     rc = connect(sock_fd, &server_addr, sizeof(server_addr));

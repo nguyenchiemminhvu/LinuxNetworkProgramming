@@ -29,7 +29,7 @@ void report_error(const char* message)
     fprintf(stderr, "Error: %s\n", message);
 }
 
-void print_sockaddr_info(sockaddr *sa)
+void print_sockaddr_info(struct sockaddr *sa)
 {
     char ip[INET6_ADDRSTRLEN];
     memset(ip, 0, INET6_ADDRSTRLEN);
@@ -68,19 +68,19 @@ void perform_https_request(char* hostname, char* port)
 {
     int rc;
 
-    protoent* tcp_proto = getprotobyname(TCP_PROTOCOL_NAME);
+    struct protoent* tcp_proto = getprotobyname(TCP_PROTOCOL_NAME);
     if (tcp_proto == NULL)
     {
         report_error("TCP protocol is not supported");
         return;
     }
 
-    addrinfo hints;
+    struct addrinfo hints;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_protocol = tcp_proto->p_proto;
-    addrinfo* addr_server;
+    struct addrinfo* addr_server;
     rc = getaddrinfo(hostname, port, &hints, &addr_server);
     if (rc != 0)
     {
@@ -95,7 +95,7 @@ void perform_https_request(char* hostname, char* port)
         return;
     }
 
-    for (addrinfo* p_server = addr_server; p_server != NULL; p_server = p_server->ai_next)
+    for (struct addrinfo* p_server = addr_server; p_server != NULL; p_server = p_server->ai_next)
     {
         print_sockaddr_info(p_server->ai_addr);
         rc = connect(sock_client, p_server->ai_addr, p_server->ai_addrlen);

@@ -46,7 +46,7 @@ void run_server()
 {
     int rc;
 
-    protoent* tcp_proto = getprotobyname(PROTOCOL);
+    struct protoent* tcp_proto = getprotobyname(PROTOCOL);
     if (tcp_proto == NULL)
     {
         report_error("TCP protocol is not supported");
@@ -57,13 +57,13 @@ void run_server()
     memset(port_server, 0, 6);
     sprintf(port_server, "%d", htons(TCP_PORT));
 
-    addrinfo hints;
+    struct addrinfo hints;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_protocol = tcp_proto->p_proto;
     hints.ai_flags = AI_PASSIVE;
-    addrinfo* addr_server;
+    struct addrinfo* addr_server;
     rc = getaddrinfo(HOST_NAME, port_server, &hints, &addr_server);
     if (rc != 0)
     {
@@ -81,7 +81,7 @@ void run_server()
 
     set_non_blocking(sock_server);
 
-    for (addrinfo* p_server = addr_server; p_server != NULL; p_server = p_server->ai_next)
+    for (struct addrinfo* p_server = addr_server; p_server != NULL; p_server = p_server->ai_next)
     {
         rc = bind(sock_server, p_server->ai_addr, p_server->ai_addrlen);
         if (rc == 0)
@@ -110,10 +110,10 @@ void run_server()
     // Server Loop
     int sock_client = -1;
     char buffer[MESSAGE_SIZE];
-    while (true)
+    while (1)
     {
-        sockaddr addr_client;
-        socklen_t addr_client_len = sizeof(sockaddr);
+        struct sockaddr addr_client;
+        socklen_t addr_client_len = sizeof(struct sockaddr);
         if (sock_client < 0)
         {
             sock_client = accept(sock_server, &addr_client, &addr_client_len);
@@ -181,7 +181,7 @@ void run_client()
 {
     int rc;
 
-    protoent* tcp_proto = getprotobyname(PROTOCOL);
+    struct protoent* tcp_proto = getprotobyname(PROTOCOL);
     if (tcp_proto == NULL)
     {
         report_error("TCP protocol is not supported");
@@ -192,12 +192,12 @@ void run_client()
     memset(port_server, 0, 6);
     sprintf(port_server, "%d", htons(TCP_PORT));
 
-    addrinfo hints;
+    struct addrinfo hints;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_protocol = tcp_proto->p_proto;
-    addrinfo* addr_server;
+    struct addrinfo* addr_server;
     rc = getaddrinfo(HOST_NAME, port_server, &hints, &addr_server);
     if (rc != 0)
     {
@@ -215,7 +215,7 @@ void run_client()
 
     // set_non_blocking(sock_client);
 
-    for (addrinfo* p_server = addr_server; p_server != NULL; p_server = p_server->ai_next)
+    for (struct addrinfo* p_server = addr_server; p_server != NULL; p_server = p_server->ai_next)
     {
         rc = connect(sock_client, p_server->ai_addr, p_server->ai_addrlen);
         if (rc == 0)
@@ -235,7 +235,7 @@ void run_client()
     // Client Loop
 
     char buffer[MESSAGE_SIZE];
-    while (true)
+    while (1)
     {
         memset(buffer, 0, MESSAGE_SIZE);
         sprintf(buffer, "Client time: %d\n", time(NULL));

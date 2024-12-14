@@ -62,13 +62,13 @@
 
 # Introduction
 
-Linux network programming deals with the interaction between processes using network interfaces. It enables interprocess communication (IPC), allowing data exchange between processes running on the same machine or on different machines connected over a network.
+Linux network programming deals with the interaction between processes using network interfaces. It enables interprocess communication (```IPC```), allowing data exchange between processes running on the same machine or on different machines connected over a network.
 
 The foundation of Linux network programming lies in the use of sockets, a universal API designed for interprocess communication. Sockets originated from BSD Unix in 1983 and were later standardized by POSIX, making them a cornerstone of modern networking.
 
 # Sockets
 
-A socket is an endpoint for communication. Think of it as a door through which data flows in and out of a process. Processes use sockets to send and receive messages, enabling seamless IPC.
+A socket is an endpoint for communication. Think of it as a door through which data flows in and out of a process. Processes use sockets to send and receive messages, enabling seamless ```IPC```.
 
 Sockets were initially designed to support two domains:
 
@@ -76,11 +76,11 @@ Sockets were initially designed to support two domains:
 
 **Internet Domain (INET)**: Used for communication between processes on different systems connected via a TCP/IP network.
 
-Unix domain sockets are used for IPC within the same operating system. They are faster than INET sockets because they don't require network protocol overhead. Instead of IP addresses, Unix domain sockets use file system paths for addressing.
+Unix domain sockets are used for ```IPC``` within the same operating system. They are faster than ```INET``` sockets because they don't require network protocol overhead. Instead of IP addresses, Unix domain sockets use file system paths for addressing.
 
-INET domain sockets are used for communication between processes on different systems connected over a network. These sockets rely on the TCP/IP protocol stack, which ensures data integrity and delivery.
+```INET``` domain sockets are used for communication between processes on different systems connected over a network. These sockets rely on the ```TCP/IP``` protocol stack, which ensures data integrity and delivery.
 
-Two common protocols used with INET domain sockets are:
+Two common protocols used with ```INET``` domain sockets are:
 
 **TCP (Transmission Control Protocol)**: Provides reliable, ordered, and error-checked delivery of data.
 
@@ -90,19 +90,19 @@ Two common protocols used with INET domain sockets are:
 
 The BSD socket API supports several types of sockets, which determine how data is transmitted between processes:
 
-**Stream Sockets (SOCK_STREAM)**: These provide a reliable, connection-oriented communication protocol. Data is sent and received as a continuous stream of bytes. Typically used with TCP (Transmission Control Protocol).
+**Stream Sockets (SOCK_STREAM)**: These provide a reliable, connection-oriented communication protocol. Data is sent and received as a continuous stream of bytes. Typically used with ```TCP``` (Transmission Control Protocol).
 
-**Datagram Sockets (SOCK_DGRAM)**: These provide a connectionless communication protocol. Data is sent in discrete packets, and delivery isn't guaranteed. Typically used with UDP (User Datagram Protocol).
+**Datagram Sockets (SOCK_DGRAM)**: These provide a connectionless communication protocol. Data is sent in discrete packets, and delivery isn't guaranteed. Typically used with ```UDP``` (User Datagram Protocol).
 
-**Raw Sockets (SOCK_RAW)**: These allow processes to access lower-level network protocols directly, bypassing the standard TCP or UDP layers. Useful for custom protocol implementations or network monitoring tools.
+**Raw Sockets (SOCK_RAW)**: These allow processes to access lower-level network protocols directly, bypassing the standard ```TCP``` or ```UDP``` layers. Useful for custom protocol implementations or network monitoring tools.
 
 ## Addressing sockets
 
 In the INET domain, sockets are identified by two components:
 
-**IP Address**: A 32-bit number (IPv4) or a 128-bit number (IPv6) that uniquely identifies a device on a network. IPv4 addresses are often represented in dotted decimal notation, such as 192.168.1.1.
+**IP Address**: A 32-bit number (```IPv4```) or a 128-bit number (```IPv6```) that uniquely identifies a device on a network. IPv4 addresses are often represented in dotted decimal notation, such as ```192.168.1.1```.
 
-**Port Number**: A 16-bit number that identifies a specific service or application on the device. For example, web servers typically use port 80 (HTTP) or 443 (HTTPS).
+**Port Number**: A 16-bit number that identifies a specific service or application on the device. For example, web servers typically use port 80 (```HTTP```) or 443 (```HTTPS```).
 
 Check some of well-known services in Linux system via ```/etc/services``` file. Ports under 1024 are often considered special, and usually require special OS privileges to use.
 
@@ -502,11 +502,11 @@ The client-server model is a way of organizing networked computers where one com
 
 Here are our goals:
 
-- we want to write a program which gets the address of a WWW site (e.g. httpstat.us) as the argument and fetches the document.
+- we want to write a program which gets the address of a WWW site (e.g. ```httpstat.us```) as the argument and fetches the document.
 - the program outputs the document to stdout;
-- the program uses TCP to connect to the HTTP server.
+- the program uses TCP to connect to the ```HTTP``` server.
 
-Click [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/07_http_redirection.cpp) for a complete source code.
+Click [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/07_http_redirection.c) for a complete source code.
 
 ![HTTP Connection](https://raw.githubusercontent.com/nguyenchiemminhvu/LinuxNetworkProgramming/refs/heads/main/http_connection.png)
 
@@ -566,7 +566,7 @@ A helper function to handle errors. When a function fails, this function is call
 ### Get TCP Protocol
 
 ```
-protoent* p_proto_ent = getprotobyname("tcp");
+struct protoent* p_proto_ent = getprotobyname("tcp");
 if (p_proto_ent == NULL)
 {
     on_func_failure("TCP protocol is not available");
@@ -606,13 +606,13 @@ Port Conversion: The port number from ```getservbyname``` is in network byte ord
 ### Resolve Host Name
 
 ```
-addrinfo hints;
+struct addrinfo hints;
 memset(&hints, 0, sizeof(hints));
 hints.ai_family = AF_INET;
 hints.ai_protocol = p_proto_ent->p_proto;
 hints.ai_socktype = SOCK_STREAM;
 
-addrinfo* server_addr;
+struct addrinfo* server_addr;
 int rc = getaddrinfo(CPP_HOSTNAME, port_buffer, &hints, &server_addr);
 if (rc != 0)
 {
@@ -652,7 +652,7 @@ If the socket creation fails, the program exits.
 ### Connect to HTTP server
 
 ```
-rc = connect(sock_fd, server_addr->ai_addr, sizeof(sockaddr));
+rc = connect(sock_fd, server_addr->ai_addr, sizeof(struct sockaddr));
 if (rc != 0)
 {
     freeaddrinfo(server_addr);
@@ -743,7 +743,7 @@ freeaddrinfo(server_addr);
 
 ## Simple TCP-Based Client-Server
 
-Click [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/08_simple_client_server.cpp) for a complete source code.
+Click [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/08_simple_client_server.c) for a complete source code.
 
 ![TCP-Based Client-Server](https://raw.githubusercontent.com/nguyenchiemminhvu/LinuxNetworkProgramming/refs/heads/main/tcp_based_client_server.png)
 
@@ -827,7 +827,7 @@ Prints error messages to stderr.
 **Choose protocol and resolve server address**
 
 ```
-protoent* tcp_proto = getprotobyname(PROTOCOL);
+struct protoent* tcp_proto = getprotobyname(PROTOCOL);
 ```
 
 Retrieves the protocol structure for the ```"tcp"``` protocol using ```getprotobyname()```.
@@ -837,13 +837,13 @@ char server_port[6];
 memset(server_port, 0, 6);
 sprintf(server_port, "%d", htons(TCP_PORT));
 
-addrinfo addr_hints;
+struct addrinfo addr_hints;
 memset(&addr_hints, 0, sizeof(addr_hints));
 addr_hints.ai_family = AF_INET;
 addr_hints.ai_socktype = SOCK_STREAM;
 addr_hints.ai_protocol = tcp_proto->p_proto;
 
-addrinfo* addr_server;
+struct addrinfo* addr_server;
 rc = getaddrinfo(NULL, server_port, &addr_hints, &addr_server);
 ```
 
@@ -901,9 +901,9 @@ Starts listening for incoming client connections with a backlog of 3.
 **Server Loop - Accept incoming client connection**
 
 ```
-sockaddr addr_client;
+struct sockaddr addr_client;
 socklen_t addr_len = sizeof(addr_client);
-sock_client = accept(sock_server, (sockaddr*)&addr_client, &addr_len);
+sock_client = accept(sock_server, (struct sockaddr*)&addr_client, &addr_len);
 ```
 
 Accepts incoming client connections using ```accept()``` function.
@@ -953,15 +953,15 @@ Handles specific commands:
 **Choose protocol and resolve server address**
 
 ```
-protoent* tcp_proto = getprotobyname(PROTOCOL);
+struct protoent* tcp_proto = getprotobyname(PROTOCOL);
 
-addrinfo addr_hints;
+struct addrinfo addr_hints;
 memset(&addr_hints, 0, sizeof(addr_hints));
 addr_hints.ai_family = AF_INET;
 addr_hints.ai_socktype = SOCK_STREAM;
 addr_hints.ai_protocol = tcp_proto->p_proto;
 
-addrinfo* addr_server;
+struct addrinfo* addr_server;
 rc = getaddrinfo(HOST_NAME, server_port, &addr_hints, &addr_server);
 ```
 
@@ -1020,7 +1020,7 @@ The provided C program is a simple implementation of a TCP client-server applica
 
 Use multithreading to handle multiple clients concurrently. Each client connection can be assigned to a separate thread, allowing the server to process multiple requests simultaneously.
 
-Click [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/09_multithread_client_server.cpp) for a complete source code.
+Click [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/09_multithread_client_server.c) for a complete source code.
 
 ### Setup Server with multithreading
 
@@ -1079,7 +1079,7 @@ void* server_handle_client(void* arg)
 
 Overall, the setup for UDP-Based client server application is similar with TCP-Based. I will show the different codes only.
 
-Click [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/10_peer_to_peer_client_server.cpp) for a complete source code.
+Click [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/10_peer_to_peer_client_server.c) for a complete source code.
 
 ![UDP-Based Client-Server](https://raw.githubusercontent.com/nguyenchiemminhvu/LinuxNetworkProgramming/refs/heads/main/udp_based_client_server.png)
 
@@ -1099,14 +1099,14 @@ Similar as previous explanation, but now the protocol is **UDP**.
 **Resolve Server Address**
 
 ```
-protoent* udp_protocol = getprotobyname(PROTOCOL);
+struct protoent* udp_protocol = getprotobyname(PROTOCOL);
 
-addrinfo hints;
+struct addrinfo hints;
 memset(&hints, 0, sizeof(hints));
 hints.ai_family = AF_INET;
 hints.ai_socktype = SOCK_DGRAM;
 hints.ai_protocol = udp_protocol->p_proto;
-addrinfo* addr_server;
+struct addrinfo* addr_server;
 rc = getaddrinfo(NULL, port_server, &hints, &addr_server); // INADDR_ANY
 ```
 
@@ -1115,10 +1115,10 @@ Specifies the socket type datagram for UDP connection.
 **Server Loop - Listen client request and response**
 
 ```
-while (true)
+while (1)
 {
-    sockaddr addr_client;
-    socklen_t addr_client_len = sizeof(sockaddr);
+    struct sockaddr addr_client;
+    socklen_t addr_client_len = sizeof(struct sockaddr);
     int received_bytes = recvfrom(sock_server, request_buffer, MESSAGE_SIZE, 0, &addr_client, &addr_client_len);
 
     sprintf(response_buffer, "Server received request at %d", time(NULL));
@@ -1132,14 +1132,14 @@ The ```recvfrom()``` and ```sendto()``` functions are the general format of ```r
 ### Setup Client
 
 ```
-protoent* udp_protocol = getprotobyname(PROTOCOL);
+struct protoent* udp_protocol = getprotobyname(PROTOCOL);
 
-addrinfo hints;
+struct addrinfo hints;
 memset(&hints, 0, sizeof(hints));
 hints.ai_family = AF_INET;
 hints.ai_socktype = SOCK_DGRAM;
 hints.ai_protocol = udp_protocol->p_proto;
-addrinfo* addr_server;
+struct addrinfo* addr_server;
 rc = getaddrinfo(HOST_NAME, port_server, &hints, &addr_server);
 ```
 
@@ -1150,7 +1150,7 @@ Specifies the socket type datagram for UDP connection.
 ```
 char request_buffer[MESSAGE_SIZE];
 char response_buffer[MESSAGE_SIZE];
-while (true)
+while (1)
 {
     printf("Enter command: ");
     fgets(request_buffer, MESSAGE_SIZE, stdin);
@@ -1169,7 +1169,7 @@ while (true)
 
 Non-blocking sockets support to build responsive applications or handle multiple connections without blocking the main thread.
 
-The code [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/11_non_blocking_sockets.cpp) demonstrates the use of non-blocking sockets in a simple TCP-based application.
+The code [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/11_non_blocking_sockets.c) demonstrates the use of non-blocking sockets in a simple TCP-based application.
 
 In this example, the ```fcntl()``` function is used to set the server and client sockets to non-blocking mode.
 
@@ -1218,7 +1218,7 @@ The utility function ```set_non_blocking()``` is used to configure the file desc
 **Server socket initialization and binding**
 
 ```
-protoent* tcp_proto = getprotobyname(PROTOCOL);
+struct protoent* tcp_proto = getprotobyname(PROTOCOL);
 int sock_server = socket(addr_server->ai_family, addr_server->ai_socktype, addr_server->ai_protocol);
 set_non_blocking(sock_server);
 ```
@@ -1271,7 +1271,7 @@ Socket of client connection is set to non-blocking mode as well, ```recv()``` do
 
 Applying non-blocking file descriptor technique to network sockets allows the server to accept multiple client connection at a time without the need of using multithreading.
 
-However, there is a limitation in the [previous sample code](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/11_non_blocking_sockets.cpp).
+However, there is a limitation in the [previous sample code](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/11_non_blocking_sockets.c).
 
 The Server Loop continuously checks for connections and data, which can lead to high CPU usage.
 
@@ -1325,7 +1325,7 @@ int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struc
 
 ```timeout```: Maximum time ```select()``` should block, or ```NULL``` for indefinite blocking.
 
-Checkout the completed sample code using I/O Multiplexing with ```select()``` function [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/12_multiplexing_select_client_server.cpp).
+Checkout the completed sample code using I/O Multiplexing with ```select()``` function [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/12_multiplexing_select_client_server.c).
 
 **Initialization of fd_set**
 
@@ -1383,8 +1383,8 @@ If I/O is ready on the server socket, it has a new connection to accept. Otherwi
 **Accepting Server I/O**
 
 ```
-sockaddr addr_client;
-socklen_t addr_client_len = sizeof(sockaddr);
+struct sockaddr addr_client;
+socklen_t addr_client_len = sizeof(struct sockaddr);
 int sock_client = accept(sock_server, &addr_client, &addr_client_len);
 FD_SET(sock_client, &master_set);
 global_max_fd = MAX(global_max_fd, sock_client);
@@ -1446,12 +1446,12 @@ int poll(struct pollfd *fds, nfds_t nfds, int timeout);
 
 The ```poll()``` function is more scalable than ```select()``` for monitoring a large number of file descriptors. It is commonly used in network programming to manage multiple connections, enabling efficient I/O multiplexing.
 
-Check out the complete code for poll() I/O multiplexing [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/13_multiplexing_poll_client_server.cpp).
+Check out the complete code for poll() I/O multiplexing [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/13_multiplexing_poll_client_server.c).
 
 **Initialization of pollfd array**
 
 ```
-pollfd fds[MAX_CONNECTION];
+struct pollfd fds[MAX_CONNECTION];
 memset(&fds, 0, sizeof(fds));
 fds[0].fd = sock_server;    // Monitor server socket
 fds[0].events = POLLIN;     // Monitor for incoming connections
@@ -1478,8 +1478,8 @@ The loop continuously monitors the file descriptors and handles events as they o
 ```
 if (fds[0].revents & POLLIN)
 {
-    sockaddr addr_client;
-    socklen_t addr_client_len = sizeof(sockaddr);
+    struct sockaddr addr_client;
+    socklen_t addr_client_len = sizeof(struct sockaddr);
     int sock_client = accept(fds[0].fd, &addr_client, &addr_client_len);
     if (nfds < MAX_CONNECTION)
     {
@@ -1526,33 +1526,37 @@ Cleans up the ```pollfd``` array after disconnections by replacing the closed de
 
 Broadcasting is a method in networking where a message is sent from one computer (called the sender) to all computers (called receivers) within the same network. This is like one person shouting a message in a room so that everyone in the room hears it (including yourself). The most common address for broadcasting is ```255.255.255.255```.
 
-The full source code that demonstrate broadcasting socket can be found [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/14_broadcasting.cpp).
+The full source code that demonstrate broadcasting socket can be found [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/00_tutorials/14_broadcasting.c).
 
 **Setup broadcast receiver socket**
 
 ```
-int setup_broadcast_receiver(broadcast_t& receiver_info)
+int setup_broadcast_receiver(struct broadcast_t* receiver_info)
 {
-    receiver_info.fd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (receiver_info.fd < 0)
+    int rc;
+
+    receiver_info->fd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (receiver_info->fd < 0)
     {
         report_error("socket() failed for receiver");
         return -1;
     }
 
     int optval = 1;
-    if (setsockopt(receiver_info.fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == -1)
+    rc = setsockopt(receiver_info->fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+    if (rc != 0)
     {
         report_error("setsockopt(SO_REUSEADDR) failed");
         return -1;
     }
 
-    receiver_info.addr_receiver.sin_family = AF_INET;
-    receiver_info.addr_receiver.sin_port = htons(BROADCAST_PORT);
-    receiver_info.addr_receiver.sin_addr.s_addr = htonl(INADDR_ANY);
-    receiver_info.addr_receiver_len = sizeof(receiver_info.addr_receiver);
+    receiver_info->addr_receiver.sin_family = AF_INET;
+    receiver_info->addr_receiver.sin_port = htons(BROADCAST_PORT);
+    receiver_info->addr_receiver.sin_addr.s_addr = htonl(INADDR_ANY);
+    receiver_info->addr_receiver_len = sizeof(receiver_info->addr_receiver);
 
-    if (bind(receiver_info.fd, (sockaddr *)&receiver_info.addr_receiver, receiver_info.addr_receiver_len) < 0)
+    rc = bind(receiver_info->fd, (struct sockaddr *)&receiver_info->addr_receiver, receiver_info->addr_receiver_len);
+    if (rc < 0)
     {
         report_error("bind() failed for receiver");
         return -1;
@@ -1568,31 +1572,34 @@ int setup_broadcast_receiver(broadcast_t& receiver_info)
 
 ```bind()```: Binds the socket to a specific port (```BROADCAST_PORT```) on the local machine. It listens for messages sent to this port.
 
-This receiver is set up to receive broadcast messages sent to the ```BROADCAST_PORT``` (defined as 5555).
+This receiver is set up to receive broadcast messages sent to the ```BROADCAST_PORT``` (defined as ```5555```).
 
 **Setup broadcast sender socket**
 
 ```
-int setup_broadcast_sender(broadcast_t& sender_info)
+int setup_broadcast_sender(struct broadcast_t* sender_info)
 {
-    sender_info.fd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (sender_info.fd < 0)
+    int rc;
+
+    sender_info->fd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sender_info->fd < 0)
     {
         report_error("socket() failed for sender");
         return -1;
     }
 
     int optval = 1;
-    if (setsockopt(sender_info.fd, SOL_SOCKET, SO_BROADCAST, &optval, sizeof(optval)) == -1)
+    rc = setsockopt(sender_info->fd, SOL_SOCKET, SO_BROADCAST, &optval, sizeof(optval));
+    if (rc != 0)
     {
         report_error("setsockopt(SO_BROADCAST) failed");
         return -1;
     }
 
-    sender_info.addr_receiver.sin_family = AF_INET;
-    sender_info.addr_receiver.sin_port = htons(BROADCAST_PORT);
-    inet_pton(AF_INET, BROADCAST_ADDR, &sender_info.addr_receiver.sin_addr);
-    sender_info.addr_receiver_len = sizeof(sender_info.addr_receiver);
+    sender_info->addr_receiver.sin_family = AF_INET;
+    sender_info->addr_receiver.sin_port = htons(BROADCAST_PORT);
+    inet_pton(AF_INET, BROADCAST_ADDR, &sender_info->addr_receiver.sin_addr);
+    sender_info->addr_receiver_len = sizeof(sender_info->addr_receiver);
 
     return 0;
 }
@@ -1611,7 +1618,7 @@ The sender is set to send broadcast messages to the specified address and port.
 ```
 void* broadcast_receiver_thread_func(void* arg)
 {
-    broadcast_t broadcast_receiver_info;
+    struct broadcast_t* broadcast_receiver_info = (struct broadcast_t*)calloc(1, sizeof(struct broadcast_t));
     if (setup_broadcast_receiver(broadcast_receiver_info) != 0)
     {
         report_error("setup_broadcast_receiver() failed");
@@ -1621,10 +1628,10 @@ void* broadcast_receiver_thread_func(void* arg)
     char buffer[MESSAGE_SIZE];
 
     printf("Start to listen broadcast messages\n");
-    while (true)
+    while (1)
     {
         memset(buffer, 0, MESSAGE_SIZE);
-        int received_bytes = recvfrom(broadcast_receiver_info.fd, buffer, MESSAGE_SIZE, 0, (sockaddr*)&broadcast_receiver_info.addr_receiver, &broadcast_receiver_info.addr_receiver_len);
+        int received_bytes = recvfrom(broadcast_receiver_info->fd, buffer, MESSAGE_SIZE, 0, (struct sockaddr*)&broadcast_receiver_info->addr_receiver, &broadcast_receiver_info->addr_receiver_len);
         if (received_bytes <= 0)
         {
             report_error("Broadcast receiver recvfrom() failed");
@@ -1635,7 +1642,8 @@ void* broadcast_receiver_thread_func(void* arg)
         }
     }
 
-    close(broadcast_receiver_info.fd);
+    close(broadcast_receiver_info->fd);
+    free(broadcast_receiver_info);
 
     return NULL;
 }
@@ -1658,7 +1666,7 @@ void* broadcast_sender_thread_func(void* arg)
 {
     char* nick_name = (char*)arg;
 
-    broadcast_t broadcast_sender_info;
+    struct broadcast_t* broadcast_sender_info = (struct broadcast_t*)calloc(1, sizeof(struct broadcast_t));
     if (setup_broadcast_sender(broadcast_sender_info) != 0)
     {
         report_error("setup_broadcast_sender() failed");
@@ -1666,11 +1674,11 @@ void* broadcast_sender_thread_func(void* arg)
     }
 
     char broadcast_message[MESSAGE_SIZE];
-    while (true)
+    while (1)
     {
         memset(broadcast_message, 0, MESSAGE_SIZE);
         sprintf(broadcast_message, "%s is active", nick_name);
-        int sent_bytes = sendto(broadcast_sender_info.fd, broadcast_message, MESSAGE_SIZE, 0, (sockaddr*)&broadcast_sender_info.addr_receiver, broadcast_sender_info.addr_receiver_len);
+        int sent_bytes = sendto(broadcast_sender_info->fd, broadcast_message, MESSAGE_SIZE, 0, (struct sockaddr*)&broadcast_sender_info->addr_receiver, broadcast_sender_info->addr_receiver_len);
         if (sent_bytes <= 0)
         {
             report_error("Send broadcast message failed");
@@ -1678,7 +1686,8 @@ void* broadcast_sender_thread_func(void* arg)
         sleep(1);
     }
 
-    close(broadcast_sender_info.fd);
+    close(broadcast_sender_info->fd);
+    free(broadcast_sender_info);
 
     return NULL;
 }
@@ -1688,7 +1697,7 @@ The function ```broadcast_sender_thread_func``` is responsible for sending broad
 
 It sets up the sender socket by calling ```setup_broadcast_sender()```.
 
-Inside a loop, it creates a message string containing the user's nickname and sends it via the sendto() function to the broadcast address every second.
+Inside a loop, it creates a message string containing the user's nickname and sends it via the ```sendto()``` function to the broadcast address every second.
 
 # Networking Libraries
 
@@ -2408,7 +2417,7 @@ With all these steps, It is enough to establish secure communication between a c
 
 ### A HTTPs Client
 
-Full source code of the example HTTPs Client is found [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/01_networking_libraries/openssl/src/https_client.cpp).
+Full source code of the example HTTPs Client is found [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/01_networking_libraries/openssl/src/https_client.c).
 
 **Result**:
 
@@ -2443,7 +2452,7 @@ Connection: close
 |----------------------------------|----------------------------------|
 | ![SSL Server Workflow](https://raw.githubusercontent.com/nguyenchiemminhvu/LinuxNetworkProgramming/refs/heads/main/SSL_server_workflow.png) | ![SSL Client Workflow](https://raw.githubusercontent.com/nguyenchiemminhvu/LinuxNetworkProgramming/refs/heads/main/SSL_client_workflow.png) |
 
-Full source code of the example SSL Client-Server is found [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/01_networking_libraries/openssl/src/ssl_client_server.cpp).
+Full source code of the example SSL Client-Server is found [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/01_networking_libraries/openssl/src/ssl_client_server.c).
 
 # Conclusion
 

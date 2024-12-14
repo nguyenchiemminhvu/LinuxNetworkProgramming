@@ -10,14 +10,14 @@ const char* CPP_HOSTNAME = "httpstat.us";
 
 int main()
 {
-    protoent* p_proto = getprotobyname("tcp");
+    struct protoent* p_proto = getprotobyname("tcp");
     if (p_proto == NULL)
     {
         fprintf(stderr, "Error: TCP protocol is not available\n");
         return -1;
     }
 
-    servent* p_service = getservbyname("http", p_proto->p_name);
+    struct servent* p_service = getservbyname("http", p_proto->p_name);
     if (p_service == NULL)
     {
         fprintf(stderr, "Error: HTTP service is not available\n");
@@ -26,13 +26,13 @@ int main()
     char port_str[6] = {'\0', };
     sprintf(port_str, "%d", ntohs(p_service->s_port));
 
-    addrinfo hints;
+    struct addrinfo hints;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_protocol = p_proto->p_proto;
     hints.ai_socktype = SOCK_STREAM;
 
-    addrinfo* res;
+    struct addrinfo* res;
     int rc = getaddrinfo(CPP_HOSTNAME, port_str, &hints, &res);
     if (rc != 0)
     {
@@ -40,7 +40,7 @@ int main()
         return -1;
     }
 
-    sockaddr server_addr = *(res->ai_addr);
+    struct sockaddr server_addr = *(res->ai_addr);
 
     int sock_fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
     if (sock_fd < 0)

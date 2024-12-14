@@ -22,7 +22,7 @@
 struct broadcast_t
 {
     int fd;
-    sockaddr_in addr_receiver;
+    struct sockaddr_in addr_receiver;
     socklen_t addr_receiver_len;
 };
 
@@ -36,31 +36,31 @@ void report_error(const char* message)
     fprintf(stderr, "Error: %s\n", message);
 }
 
-int setup_broadcast_receiver(broadcast_t& receiver_info)
+int setup_broadcast_receiver(struct broadcast_t* receiver_info)
 {
     int rc;
 
-    receiver_info.fd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (receiver_info.fd < 0)
+    receiver_info->fd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (receiver_info->fd < 0)
     {
         report_error("socket() failed for receiver");
         return -1;
     }
 
     int optval = 1;
-    rc = setsockopt(receiver_info.fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+    rc = setsockopt(receiver_info->fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
     if (rc != 0)
     {
         report_error("setsockopt(SO_REUSEADDR) failed");
         return -1;
     }
 
-    receiver_info.addr_receiver.sin_family = AF_INET;
-    receiver_info.addr_receiver.sin_port = htons(BROADCAST_PORT);
-    receiver_info.addr_receiver.sin_addr.s_addr = htonl(INADDR_ANY);
-    receiver_info.addr_receiver_len = sizeof(receiver_info.addr_receiver);
+    receiver_info->addr_receiver.sin_family = AF_INET;
+    receiver_info->addr_receiver.sin_port = htons(BROADCAST_PORT);
+    receiver_info->addr_receiver.sin_addr.s_addr = htonl(INADDR_ANY);
+    receiver_info->addr_receiver_len = sizeof(receiver_info->addr_receiver);
 
-    rc = bind(receiver_info.fd, (sockaddr *)&receiver_info.addr_receiver, receiver_info.addr_receiver_len);
+    rc = bind(receiver_info->fd, (struct sockaddr *)&receiver_info->addr_receiver, receiver_info->addr_receiver_len);
     if (rc < 0)
     {
         report_error("bind() failed for receiver");
@@ -70,36 +70,36 @@ int setup_broadcast_receiver(broadcast_t& receiver_info)
     return 0;
 }
 
-int setup_broadcast_sender(broadcast_t& sender_info)
+int setup_broadcast_sender(struct broadcast_t* sender_info)
 {
     int rc;
 
-    sender_info.fd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (sender_info.fd < 0)
+    sender_info->fd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sender_info->fd < 0)
     {
         report_error("socket() failed for sender");
         return -1;
     }
 
     int optval = 1;
-    rc = setsockopt(sender_info.fd, SOL_SOCKET, SO_BROADCAST, &optval, sizeof(optval));
+    rc = setsockopt(sender_info->fd, SOL_SOCKET, SO_BROADCAST, &optval, sizeof(optval));
     if (rc != 0)
     {
         report_error("setsockopt(SO_BROADCAST) failed");
         return -1;
     }
 
-    sender_info.addr_receiver.sin_family = AF_INET;
-    sender_info.addr_receiver.sin_port = htons(BROADCAST_PORT);
-    inet_pton(AF_INET, BROADCAST_ADDR, &sender_info.addr_receiver.sin_addr);
-    sender_info.addr_receiver_len = sizeof(sender_info.addr_receiver);
+    sender_info->addr_receiver.sin_family = AF_INET;
+    sender_info->addr_receiver.sin_port = htons(BROADCAST_PORT);
+    inet_pton(AF_INET, BROADCAST_ADDR, &sender_info->addr_receiver.sin_addr);
+    sender_info->addr_receiver_len = sizeof(sender_info->addr_receiver);
 
     return 0;
 }
 
 void* broadcast_receiver_thread_func(void* arg)
 {
-    broadcast_t broadcast_receiver_info;
+    struct broadcast_t* broadcast_receiver_info = (struct broadcast_t*)calloc(1, sizeof(struct broadcast_t));
     if (setup_broadcast_receiver(broadcast_receiver_info) != 0)
     {
         report_error("setup_broadcast_receiver() failed");
@@ -109,10 +109,10 @@ void* broadcast_receiver_thread_func(void* arg)
     char buffer[MESSAGE_SIZE];
 
     printf("Start to listen broadcast messages\n");
-    while (true)
+    while (1)
     {
         memset(buffer, 0, MESSAGE_SIZE);
-        int received_bytes = recvfrom(broadcast_receiver_info.fd, buffer, MESSAGE_SIZE, 0, (sockaddr*)&broadcast_receiver_info.addr_receiver, &broadcast_receiver_info.addr_receiver_len);
+        int received_bytes = recvfrom(broadcast_receiver_info->fd, buffer, MESSAGE_SIZE, 0, (struct sockaddr*)&broadcast_receiver_info->addr_receiver, &broadcast_receiver_info->addr_receiver_len);
         if (received_bytes <= 0)
         {
             report_error("Broadcast receiver recvfrom() failed");
@@ -123,7 +123,8 @@ void* broadcast_receiver_thread_func(void* arg)
         }
     }
 
-    close(broadcast_receiver_info.fd);
+    close(broadcast_receiver_info->fd);
+    free(broadcast_receiver_info);
 
     return NULL;
 }
@@ -132,7 +133,7 @@ void* broadcast_sender_thread_func(void* arg)
 {
     char* nick_name = (char*)arg;
 
-    broadcast_t broadcast_sender_info;
+    struct broadcast_t* broadcast_sender_info = (struct broadcast_t*)calloc(1, sizeof(struct broadcast_t));
     if (setup_broadcast_sender(broadcast_sender_info) != 0)
     {
         report_error("setup_broadcast_sender() failed");
@@ -140,11 +141,11 @@ void* broadcast_sender_thread_func(void* arg)
     }
 
     char broadcast_message[MESSAGE_SIZE];
-    while (true)
+    while (1)
     {
         memset(broadcast_message, 0, MESSAGE_SIZE);
         sprintf(broadcast_message, "%s is active", nick_name);
-        int sent_bytes = sendto(broadcast_sender_info.fd, broadcast_message, MESSAGE_SIZE, 0, (sockaddr*)&broadcast_sender_info.addr_receiver, broadcast_sender_info.addr_receiver_len);
+        int sent_bytes = sendto(broadcast_sender_info->fd, broadcast_message, MESSAGE_SIZE, 0, (struct sockaddr*)&broadcast_sender_info->addr_receiver, broadcast_sender_info->addr_receiver_len);
         if (sent_bytes <= 0)
         {
             report_error("Send broadcast message failed");
@@ -152,7 +153,8 @@ void* broadcast_sender_thread_func(void* arg)
         sleep(1);
     }
 
-    close(broadcast_sender_info.fd);
+    close(broadcast_sender_info->fd);
+    free(broadcast_sender_info);
 
     return NULL;
 }
@@ -174,7 +176,7 @@ int main(int argc, char** argv)
     pthread_detach(broadcast_sender_thread);
 
     char buffer_stdin[MESSAGE_SIZE];
-    while (true)
+    while (1)
     {
         printf("User input: ");
         memset(buffer_stdin, 0, MESSAGE_SIZE);

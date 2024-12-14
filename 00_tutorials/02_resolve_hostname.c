@@ -9,7 +9,7 @@ int main()
 {
     const char* CPP_HOSTNAME = "httpstat.us";
 
-    hostent* host_info = gethostbyname(CPP_HOSTNAME);
+    struct hostent* host_info = gethostbyname(CPP_HOSTNAME);
     if (host_info == NULL)
     {
         fprintf(stderr, "Error: Could not resolve hostname %s\n", CPP_HOSTNAME);
@@ -24,11 +24,11 @@ int main()
 
     for (char** p_addr = host_info->h_addr_list; *p_addr != NULL; p_addr++)
     {
-        printf("IP address %ld: %s\n", p_addr - host_info->h_addr_list, inet_ntoa(*(in_addr*)*p_addr));
+        printf("IP address %ld: %s\n", p_addr - host_info->h_addr_list, inet_ntoa(*(struct in_addr*)*p_addr));
     }
 
-    addrinfo hints;
-    addrinfo* res;
+    struct addrinfo hints;
+    struct addrinfo* res;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
@@ -39,8 +39,8 @@ int main()
         return -1;
     }
 
-    sockaddr_in* addr = (sockaddr_in*)res->ai_addr;
-    sockaddr_in server_address = *addr;
+    struct sockaddr_in* addr = (struct sockaddr_in*)res->ai_addr;
+    struct sockaddr_in server_address = *addr;
     char ip_str[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &server_address.sin_addr.s_addr, ip_str, sizeof(ip_str));
     printf("IP address: %s\n", ip_str);
