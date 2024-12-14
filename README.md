@@ -2313,6 +2313,10 @@ To work with ```SSL/TLS``` protocol in programming, ```OpenSSL``` is a typical c
 sudo apt-get install libssl-dev openssl
 ```
 
+```libssl-dev```: Contains the development libraries for ```OpenSSL```, which are needed to compile programs using ```OpenSSL```.
+
+```openssl```: Installs the ```OpenSSL``` command-line tool, which can be used for generating keys and certificates or debugging ```SSL/TLS``` issues.
+
 **Initialize OpenSSL**
 
 ```
@@ -2324,19 +2328,35 @@ SSL_load_error_strings();
 OpenSSL_add_all_algorithms();
 ```
 
+These steps ensure that ```OpenSSL``` is ready to handle cryptography and provide meaningful error messages in case something goes wrong.
+
 **Create SSL context**
 
 ```
 SSL_CTX *ctx = SSL_CTX_new(TLS_server_method());  // For server
+
 SSL_CTX *ctx = SSL_CTX_new(TLS_client_method());  // For client
 ```
+
+```TLS_server_method()```: Configures the context for use in server mode.
+
+```TLS_client_method()```: Configures the context for use in client mode.
+
+The ```SSL_CTX``` structure holds protocol settings, certificates, and other necessary configurations.
 
 **Load Certificates (only for server)**
 
 ```
 SSL_CTX_use_certificate_file(ctx, "server.crt", SSL_FILETYPE_PEM);
+
 SSL_CTX_use_PrivateKey_file(ctx, "server.key", SSL_FILETYPE_PEM);
 ```
+
+```server.crt```: The server's certificate file (proves the server's identity to the client).
+
+```server.key```: The private key file associated with the certificate.
+
+This step ensures that the server can provide authentication during the ```SSL/TLS ```handshake.
 
 **Create and Bind socket**
 
@@ -2349,19 +2369,30 @@ SSL *ssl = SSL_new(ctx);
 SSL_set_fd(ssl, socket_fd);
 ```
 
+The ```SSL``` object manages the encryption and decryption for the socket connection.
+
 **Perform Handshake**
 
 ```
-SSL_accept(ssl); // for server
+SSL_accept(ssl); // For server
 
-SSL_connect(ssl); // for client
+SSL_connect(ssl); // For client
 ```
 
+The ```SSL/TLS``` handshake authenticates the server (and optionally the client) and establishes an encrypted communication channel.
+
+```SSL_accept()```: The server waits for the client to initiate the handshake.
+
+```SSL_connect()```: The client initiates the handshake with the server.
+
 **Send and receive encrypted data**
+
+After the handshake, the ```SSL``` connection is ready to send and receive encrypted data.
 
 ```
 SSL_write(ssl, "Hello, Secure World!", strlen("Hello, Secure World!"));
 char buffer[1024];
+
 SSL_read(ssl, buffer, sizeof(buffer));
 ```
 
@@ -2372,6 +2403,8 @@ SSL_shutdown(ssl);
 SSL_free(ssl);
 SSL_CTX_free(ctx);
 ```
+
+With all these steps, It is enough to establish secure communication between a client and server using the ```SSL/TLS``` protocol with ```OpenSSL``` library.
 
 ### A HTTPs Client
 
