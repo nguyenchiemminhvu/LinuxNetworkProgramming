@@ -2290,19 +2290,127 @@ Full source code of basic curl multithreading [HERE](https://github.com/nguyench
 
 ## Secure Networking with OpenSSL
 
+```SSL``` (Secure Sockets Layer) is a cryptographic protocol originally designed to provide secure communication over a network, such as the internet. It ensures that the data transferred between a client (e.g., a web browser) and a server (e.g., a website) is encrypted, authenticated, and protected from being tampered with.
 
+Modern systems use ```TLS``` (Transport Layer Security), which is an updated and more secure version of ```SSL```. When people say ```SSL```, they often mean ```SSL/TLS```.
+
+One of well-known ```SSL/TLS``` application is HTTPs protocol. TLS encryption method is used to secure communication on the web, such as browsing, submit forms, online payments...
+
+**SSL Handshake:**
+
+- The client (e.g., a browser) connects to the server and says, "I want to use SSL/TLS."
+- The server sends back its certificate, which contains its identity and a public key.
+- The client verifies the server's certificate to ensure it’s legitimate.
+- The client and server agree on a shared "session key" to encrypt the data during the session.
+
+![How HTTPs work](https://raw.githubusercontent.com/nguyenchiemminhvu/LinuxNetworkProgramming/refs/heads/main/how_https_work.png)
+
+To work with ```SSL/TLS``` protocol in programming, ```OpenSSL``` is a typical choice.
+
+**Installation**
+
+```
+sudo apt-get install libssl-dev openssl
+```
+
+**Initialize OpenSSL**
+
+```
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+
+SSL_library_init();
+SSL_load_error_strings();
+OpenSSL_add_all_algorithms();
+```
+
+**Create SSL context**
+
+```
+SSL_CTX *ctx = SSL_CTX_new(TLS_server_method());  // For server
+SSL_CTX *ctx = SSL_CTX_new(TLS_client_method());  // For client
+```
+
+**Load Certificates (only for server)**
+
+```
+SSL_CTX_use_certificate_file(ctx, "server.crt", SSL_FILETYPE_PEM);
+SSL_CTX_use_PrivateKey_file(ctx, "server.key", SSL_FILETYPE_PEM);
+```
+
+**Create and Bind socket**
+
+Set up a regular ```TCP``` socket as you would for normal network programming.
+
+**Wrap socket with SSL**
+
+```
+SSL *ssl = SSL_new(ctx);
+SSL_set_fd(ssl, socket_fd);
+```
+
+**Perform Handshake**
+
+```
+SSL_accept(ssl); // for server
+
+SSL_connect(ssl); // for client
+```
+
+**Send and receive encrypted data**
+
+```
+SSL_write(ssl, "Hello, Secure World!", strlen("Hello, Secure World!"));
+char buffer[1024];
+SSL_read(ssl, buffer, sizeof(buffer));
+```
+
+**Cleanup**
+
+```
+SSL_shutdown(ssl);
+SSL_free(ssl);
+SSL_CTX_free(ctx);
+```
 
 ### A HTTPs Client
 
-```
+Full source code of the example HTTPs Client is found [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/01_networking_libraries/openssl/src/https_client.cpp).
 
+**Result**:
+
+```
+ncmv@localhost:~/study_workspace/LinuxNetworkProgramming/01_networking_libraries/openssl/build$ ./https_client example.com 443
+
+93.184.215.14:443
+SSL connection is done with cipher suite TLS_AES_256_GCM_SHA384
+
+Received 361 bytes
+Received 1256 bytes
+HTTP/1.1 200 OK
+Age: 140532
+Cache-Control: max-age=604800
+Content-Type: text/html; charset=UTF-8
+Date: Sat, 14 Dec 2024 09:44:47 GMT
+Etag: "3147526947+gzip+ident"
+Expires: Sat, 21 Dec 2024 09:44:47 GMT
+Last-Modified: Thu, 17 Oct 2019 07:18:26 GMT
+Server: ECAcc (sed/58B0)
+Vary: Accept-Encoding
+X-Cache: HIT
+Content-Length: 1256
+Connection: close
+
+(The remaining is HTTP content of example.com website)
 ```
 
 ### Secure Client-Server
 
-```
+| SSL Server Workflow             | SSL Client Workflow             |
+|----------------------------------|----------------------------------|
+| ![SSL Server Workflow](https://raw.githubusercontent.com/nguyenchiemminhvu/LinuxNetworkProgramming/refs/heads/main/SSL_server_workflow.png) | ![SSL Client Workflow](https://raw.githubusercontent.com/nguyenchiemminhvu/LinuxNetworkProgramming/refs/heads/main/SSL_client_workflow.png) |
 
-```
+Full source code of the example SSL Client-Server is found [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/01_networking_libraries/openssl/src/ssl_client_server.cpp).
 
 # Conclusion
 
