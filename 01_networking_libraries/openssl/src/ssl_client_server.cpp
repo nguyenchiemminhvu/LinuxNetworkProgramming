@@ -204,99 +204,105 @@ void run_server()
         arr_ssl[i] = NULL;
     }
 
+    int nfds = 1;
+
     // Server Loop
     char request_buffer[MESSAGE_SIZE];
     char response_buffer[MESSAGE_SIZE];
     while (true)
     {
         int activity = poll(fds, MAX_CONNECTION, -1);
-        if (activity < 0)
+        if (activity <= 0)
         {
             report_error("Server poll() failed");
             break;
         }
 
-        if (fds[0].revents & POLLIN)
+        for (int i = 0; i < nfds; i++)
         {
-            sockaddr addr_client;
-            socklen_t addr_client_len = sizeof(sockaddr);
-            int sock_client = accept(fds[0].fd, &addr_client, &addr_client_len);
-            if (sock_client > 0)
+            if (fds[i].revents & POLLIN)
             {
-                char ip_client[NI_MAXHOST];
-                char port_client[NI_MAXSERV];
-                rc = getnameinfo(&addr_client, addr_client_len, ip_client, NI_MAXHOST, port_client, NI_MAXSERV, NI_NUMERICHOST | NI_NUMERICSERV);
-                if (rc == 0)
+                if (fds[i].fd == sock_server)
                 {
-                    printf("Client %d is connected %s:%s\n", sock_client, ip_client, port_client);
-                }
-
-                for (int i_con = 1; i_con < MAX_CONNECTION; i_con++)
-                {
-                    if (fds[i_con].fd < 0)
+                    sockaddr addr_client;
+                    socklen_t addr_client_len = sizeof(sockaddr);
+                    int sock_client = accept(sock_server, &addr_client, &addr_client_len);
+                    if (sock_client > 0)
                     {
-                        fds[i_con].fd = sock_client;
-                        fds[i_con].events = POLLIN;
-                        arr_ssl[i_con] = SSL_new(p_ssl_context);
-                        SSL_set_fd(arr_ssl[i_con], fds[i_con].fd);
-
-                        rc = SSL_accept(arr_ssl[i_con]);
-                        if (rc <= 0)
+                        char ip_client[NI_MAXHOST];
+                        char port_client[NI_MAXSERV];
+                        rc = getnameinfo(&addr_client, addr_client_len, ip_client, NI_MAXHOST, port_client, NI_MAXSERV, NI_NUMERICHOST | NI_NUMERICSERV);
+                        if (rc == 0)
                         {
-                            report_error("Server SSL_accept() failed");
-                            ERR_print_errors_fp(stderr);
-
-                            close(fds[i_con].fd);
-                            fds[i_con].fd = 0;
-
-                            SSL_free(arr_ssl[i_con]);
-                            arr_ssl[i_con] = NULL;
+                            printf("Client %d is connected %s:%s\n", sock_client, ip_client, port_client);
                         }
 
-                        break;
+                        if (nfds < MAX_CONNECTION)
+                        {
+                            fds[nfds].fd = sock_client;
+                            fds[nfds].events = POLLIN;
+                            arr_ssl[nfds] = SSL_new(p_ssl_context);
+                            SSL_set_fd(arr_ssl[nfds], fds[nfds].fd);
+
+                            rc = SSL_accept(arr_ssl[nfds]);
+                            if (rc <= 0)
+                            {
+                                report_error("Server SSL_accept() failed");
+                                ERR_print_errors_fp(stderr);
+
+                                close(fds[nfds].fd);
+                                fds[nfds].fd = -1;
+
+                                SSL_free(arr_ssl[nfds]);
+                                arr_ssl[nfds] = NULL;
+                            }
+                            else
+                            {
+                                set_non_blocking(fds[nfds].fd);
+                                nfds++;
+                            }
+                        }
                     }
-                }
-            }
-        }
-
-        for (int i = 1; i < MAX_CONNECTION; i++)
-        {
-            if (fds[i].fd > 0 && fds[i].revents & POLLIN)
-            {
-                bool should_disconnect = false;
-                memset(request_buffer, 0, MESSAGE_SIZE);
-                int received_bytes = SSL_read(arr_ssl[i], request_buffer, MESSAGE_SIZE);
-                if (received_bytes <= 0)
-                {
-                    should_disconnect = true;
-                }
-
-                if (strcmp(request_buffer, "quit") == 0 || strcmp(request_buffer, "exit") == 0)
-                {
-                    should_disconnect = true;
-                }
-
-                if (should_disconnect)
-                {
-                    printf("Client %d is disconnected\n", fds[i].fd);
-                    close(fds[i].fd);
-                    SSL_shutdown(arr_ssl[i]);
-                    SSL_free(arr_ssl[i]);
-                    fds[i].fd = -1;
-                    arr_ssl[i] = NULL;
                 }
                 else
                 {
-                    request_buffer[received_bytes] = 0;
-                    printf("Server received %d request: %s\n", fds[i].fd, request_buffer);
-
-                    memset(response_buffer, 0, MESSAGE_SIZE);
-                    sprintf(response_buffer, "Server time: %ld", time(NULL));
-
-                    int sent_bytes = SSL_write(arr_ssl[i], response_buffer, strlen(response_buffer));
-                    if (sent_bytes <= 0)
+                    bool should_disconnect = false;
+                    memset(request_buffer, 0, MESSAGE_SIZE);
+                    int received_bytes = SSL_read(arr_ssl[i], request_buffer, MESSAGE_SIZE);
+                    if (received_bytes <= 0)
                     {
-                        report_error("Server SSL_write() failed");
+                        should_disconnect = true;
+                    }
+
+                    if (strcmp(request_buffer, "quit") == 0 || strcmp(request_buffer, "exit") == 0)
+                    {
+                        should_disconnect = true;
+                    }
+
+                    if (should_disconnect)
+                    {
+                        printf("Client %d is disconnected\n", fds[i].fd);
+                        close(fds[i].fd);
+                        SSL_free(arr_ssl[i]);
+                        fds[i].fd = fds[nfds - 1].fd;
+                        arr_ssl[i] = arr_ssl[nfds - 1];
+                        fds[nfds - 1].fd = -1;
+                        arr_ssl[nfds - 1] = NULL;
+                        nfds--;
+                    }
+                    else
+                    {
+                        request_buffer[received_bytes] = 0;
+                        printf("Server received %d request: %s\n", fds[i].fd, request_buffer);
+
+                        memset(response_buffer, 0, MESSAGE_SIZE);
+                        sprintf(response_buffer, "Server time: %ld", time(NULL));
+
+                        int sent_bytes = SSL_write(arr_ssl[i], response_buffer, strlen(response_buffer));
+                        if (sent_bytes <= 0)
+                        {
+                            report_error("Server SSL_write() failed");
+                        }
                     }
                 }
             }
