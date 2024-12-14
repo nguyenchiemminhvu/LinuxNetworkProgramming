@@ -121,7 +121,6 @@ void perform_https_request(char* hostname, char* port)
         report_error("Unable to create SSL context");
         freeaddrinfo(addr_server);
         close(sock_client);
-        EVP_cleanup();
         return;
     }
 
@@ -129,6 +128,9 @@ void perform_https_request(char* hostname, char* port)
     if (ssl == NULL)
     {
         report_error("SSL_new() failed");
+        freeaddrinfo(addr_server);
+        close(sock_client);
+        SSL_CTX_free(ssl_context);
         return;
     }
 
@@ -138,6 +140,11 @@ void perform_https_request(char* hostname, char* port)
     {
         report_error("SSL_connect() failed");
         ERR_print_errors_fp(stderr);
+        freeaddrinfo(addr_server);
+        close(sock_client);
+        SSL_CTX_free(ssl_context);
+        SSL_shutdown(ssl);
+        SSL_free(ssl);
         return;
     }
 
@@ -152,6 +159,11 @@ void perform_https_request(char* hostname, char* port)
     {
         report_error("SSL_write() failed");
         ERR_print_errors_fp(stderr);
+        freeaddrinfo(addr_server);
+        close(sock_client);
+        SSL_CTX_free(ssl_context);
+        SSL_shutdown(ssl);
+        SSL_free(ssl);
         return;
     }
 
