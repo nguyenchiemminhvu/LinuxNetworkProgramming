@@ -54,8 +54,10 @@
     - [Basic Curl](#basic-curl)
     - [Curl Multiple Handles](#curl-multiple-handles)
     - [Curl Multithreading](#curl-multithreading)
+  - [Create A Simple HTTP Server](#create-a-simple-http-server)
+    - [Demo](#demo)
   - [Secure Networking with OpenSSL](#secure-networking-with-openssl)
-    - [A HTTPs Client](#a-https-client)
+    - [A HTTPS Client](#a-https-client)
     - [Secure Client-Server](#secure-client-server)
 - [Conclusion](#conclusion)
 
@@ -2297,6 +2299,106 @@ Details:
 
 Full source code of basic curl multithreading [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/01_networking_libraries/libcurl/src/curl_multithreaded.cpp).
 
+## Create A Simple HTTP Server
+
+![HTTP Server class diagram](https://raw.githubusercontent.com/nguyenchiemminhvu/LinuxNetworkProgramming/main/01_networking_libraries/my_http_server/http_server_design.png)
+
+Full source code of my simple HTTP server is found [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/tree/main/01_networking_libraries/my_http_server).
+
+This is a simple ```HTTP``` server written in ```C++``` using Linux socket programming. The server is designed to handle basic ```HTTP``` requests and responses. It listens for incoming connections, processes the requests, and sends back an appropriate response.
+
+### Demo
+
+**Server side:**
+
+```
+ncmv@localhost:~/study_workspace/LinuxNetworkProgramming/01_networking_libraries/my_http_server/build$ cmake ..
+
+ncmv@localhost:~/study_workspace/LinuxNetworkProgramming/01_networking_libraries/my_http_server/build$ make
+
+ncmv@localhost:~/study_workspace/LinuxNetworkProgramming/01_networking_libraries/my_http_server/build$ ./HTTPServer 8080
+
+[1734346074] [INFO] 127.0.0.1:8080
+[1734346074] [INFO] Server starts new poll()
+[1734346086] [INFO] A client is connected
+[1734346086] [INFO] 127.0.0.1:48146
+[1734346086] [INFO] A client is disconnected
+[1734346086] [INFO] Server starts new poll()
+```
+
+**Client side:**
+
+```
+ncmv@localhost:~/study_workspace/LinuxNetworkProgramming/01_networking_libraries/my_http_server/build$ curl -I http://localhost:8080
+
+HTTP/1.1 200 OK
+Content-Length:1544
+Content-Length: 1544
+```
+
+```
+ncmv@localhost:~/study_workspace/LinuxNetworkProgramming/01_networking_libraries/my_http_server/build$ curl http://localhost:8080
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Main Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        h1 {
+            font-size: 2.5em;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            margin: 10px 0;
+        }
+        a {
+            text-decoration: none;
+            font-size: 1.2em;
+            color: #007bff;
+            padding: 10px 15px;
+            border: 1px solid #007bff;
+            border-radius: 5px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        a:hover {
+            background-color: #007bff;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>Main Page</h1>
+    <p>Select a folder to view its contents:</p>
+    <ul>
+        <li><a href="./200">200 - OK</a></li>
+        <li><a href="./400">400 - Bad Request</a></li>
+        <li><a href="./403">403 - Forbidden</a></li>
+        <li><a href="./404">404 - Not Found</a></li>
+        <li><a href="./500">500 - Internal Server Error</a></li>
+    </ul>
+</body>
+</html>
+```
+
 ## Secure Networking with OpenSSL
 
 ```SSL``` (Secure Sockets Layer) is a cryptographic protocol originally designed to provide secure communication over a network, such as the internet. It ensures that the data transferred between a client (e.g., a web browser) and a server (e.g., a website) is encrypted, authenticated, and protected from being tampered with.
@@ -2415,7 +2517,7 @@ SSL_CTX_free(ctx);
 
 With all these steps, It is enough to establish secure communication between a client and server using the ```SSL/TLS``` protocol with ```OpenSSL``` library.
 
-### A HTTPs Client
+### A HTTPS Client
 
 Full source code of the example HTTPs Client is found [HERE](https://github.com/nguyenchiemminhvu/LinuxNetworkProgramming/blob/main/01_networking_libraries/openssl/src/https_client.c).
 

@@ -6,14 +6,14 @@
 #include <cstring>
 #include <sstream>
 #include <fstream>
-#include <filesystem>
+#include <boost/filesystem.hpp>
 
 HTTPResponse HTTPRouter::route(const HTTPRequest& request)
 {
     HTTPResponse response;
 
     std::string path = std::string(STR_HTTP_ROOT_PATH) + request.m_path;
-    if (!std::filesystem::exists(path) || !std::filesystem::is_directory(path))
+    if (!boost::filesystem::exists(path) || !boost::filesystem::is_directory(path))
     {
         LOGE("Path is not found");
         path = std::string(STR_HTTP_ROOT_PATH) + std::string("/404");
