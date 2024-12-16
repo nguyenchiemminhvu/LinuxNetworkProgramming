@@ -7,5 +7,6 @@
 #include <sys/socket.h>
 
 void print_sockaddr_info(sockaddr *sa);
+void set_socket_nonblocking(int sock);
 
 #endif // UTILS_H

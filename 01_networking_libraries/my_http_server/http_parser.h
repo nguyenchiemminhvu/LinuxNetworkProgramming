@@ -7,7 +7,7 @@
 class HTTPParser
 {
 public:
-    static HTTPRequest parse(const std::string& raw_request);
+    HTTPRequest parse(const std::string& raw_request);
 };
 
 #endif // HTTP_PARSER_H

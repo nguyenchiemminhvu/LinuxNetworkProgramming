@@ -1,6 +1,7 @@
 #include "utils.h"
 #include "logging.h"
 #include <cstring>
+#include <fcntl.h>
 
 void print_sockaddr_info(sockaddr* sa)
 {
@@ -36,4 +37,19 @@ void print_sockaddr_info(sockaddr* sa)
 
     std::string ip_port = std::string(ip) + ":" + std::to_string(port);
     LOGI(ip_port);
+}
+
+void set_socket_nonblocking(int sock)
+{
+    int flags = fcntl(sock, F_GETFL, 0);
+    if (flags == -1)
+    {
+        LOGE("fcntl(F_GETFL) failed");
+        return;
+    }
+
+    if (fcntl(sock, F_SETFL, flags | O_NONBLOCK) == -1)
+    {
+        LOGE("fcntl(F_SETFL, O_NONBLOCK) failed");
+    }
 }
