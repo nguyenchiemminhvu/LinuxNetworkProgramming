@@ -19,3 +19,12 @@ target_link_libraries(HTTPServer
         ssl
         crypto
 )
+
+add_custom_target(deploy_http_root ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_SOURCE_DIR}/http_root
+    ${CMAKE_BINARY_DIR}/http_root
+    COMMENT "Deploying HTTP root folder to build directory"
+)
+
+add_dependencies(HTTPServer deploy_http_root)
