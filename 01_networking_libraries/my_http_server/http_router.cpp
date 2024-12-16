@@ -24,10 +24,8 @@ HTTPResponse HTTPRouter::route(const HTTPRequest& request)
         response.set_status(HTTP_200);
     }
 
-    LOGD(path.c_str());
 
     std::string filename = path + STR_HTTP_MAIN_PAGE;
-    LOGD(filename);
     std::fstream file(filename, std::ios::in);
     if (file.is_open())
     {
@@ -42,13 +40,11 @@ HTTPResponse HTTPRouter::route(const HTTPRequest& request)
 
         if (file)
         {
-            LOGD("File content read successfully.");
-            LOGD(html_content);
             response.set_body(html_content);
         }
         else
         {
-            std::cerr << "Error reading the file." << std::endl;
+           LOGE("Error reading the file");
         }
 
         file.close();
