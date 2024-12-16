@@ -8,6 +8,8 @@ class HTTPResponse
 {
 public:
     HTTPResponse(int code = 404, const std::string& body = "404 Not Found");
+    void set_status(int status);
+    void set_body(const std::string& body);
     void set_header(const std::string& key, const std::string& val);
     std::string to_string();
 

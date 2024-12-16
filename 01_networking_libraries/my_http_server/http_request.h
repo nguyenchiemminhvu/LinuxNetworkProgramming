@@ -7,12 +7,13 @@
 class HTTPRequest
 {
 public:
+    HTTPRequest() = default;
+
+public:
     std::string m_method;
     std::string m_path;
     std::unordered_map<std::string, std::string> m_headers;
     std::string m_body;
-
-    HTTPRequest() = default;
 };
 
 #endif // HTTP_REQUEST_H
