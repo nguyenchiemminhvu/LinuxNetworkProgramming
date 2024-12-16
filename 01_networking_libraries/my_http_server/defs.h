@@ -2,6 +2,7 @@
 #define DEFS_H
 
 #define STR_HTTP_ROOT_PATH "http_root"
+#define STR_HTTP_MAIN_PAGE "index.html"
 #define STR_LOCALHOST "localhost"
 #define STR_LOCALHOST_IP "127.0.0.1"
 #define STR_TCP_PROTOCOL "tcp"

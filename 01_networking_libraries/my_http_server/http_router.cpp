@@ -26,7 +26,7 @@ HTTPResponse HTTPRouter::route(const HTTPRequest& request)
 
     LOGD(path.c_str());
 
-    std::string filename = path + "index.html";
+    std::string filename = path + STR_HTTP_MAIN_PAGE;
     LOGD(filename);
     std::fstream file(filename, std::ios::in);
     if (file.is_open())
