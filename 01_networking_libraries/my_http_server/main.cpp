@@ -1,4 +1,5 @@
 #include "http_server.h"
+#include "logging.h"
 #include <iostream>
 #include <stdlib.h>
 #include <string>
@@ -24,7 +25,7 @@ int main(int argc, char** argv)
     }
     catch(const std::exception& e)
     {
-        std::cerr << e.what() << '\n';
+        LOGE(e.what());
         print_usage(argv[0]);
     }   
 

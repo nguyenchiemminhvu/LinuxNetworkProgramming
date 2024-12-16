@@ -11,6 +11,9 @@ public:
 
 private:
     bool setup_socket();
+
+private:
+    int sock_server;
 };
 
 #endif // HTTP_SERVER_H
