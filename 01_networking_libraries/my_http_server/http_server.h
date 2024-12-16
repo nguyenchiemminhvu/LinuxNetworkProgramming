@@ -10,7 +10,7 @@ public:
     void start();
 
 private:
-    bool setup_socket();
+    bool setup_socket(int port);
 
 private:
     int sock_server;
