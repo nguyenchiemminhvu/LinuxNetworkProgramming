@@ -14,11 +14,7 @@ add_executable(HTTPServer main.cpp ${SOURCES})
 
 target_link_libraries(HTTPServer
     PRIVATE
-        CURL::libcurl
         Threads::Threads
-        ssl
-        crypto
-        stdc++fs
 )
 
 add_custom_target(deploy_http_root ALL

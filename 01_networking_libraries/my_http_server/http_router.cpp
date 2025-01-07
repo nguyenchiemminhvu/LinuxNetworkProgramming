@@ -6,17 +6,27 @@
 #include <cstring>
 #include <sstream>
 #include <fstream>
-#include <experimental/filesystem>
+
+#if __has_include(<filesystem>)
+    #include <filesystem>
+    namespace fs = std::filesystem;
+#elif __has_include(<experimental/filesystem>)
+    #include <experimental/filesystem>
+    namespace fs = std::experimental::filesystem;
+#else
+    #error "No filesystem support available!"
+#endif
 
 HTTPResponse HTTPRouter::route(const HTTPRequest& request)
 {
     HTTPResponse response;
 
-    std::string path = std::string(STR_HTTP_ROOT_PATH) + request.m_path;
-    if (!std::experimental::filesystem::exists(path) || !std::experimental::filesystem::is_directory(path))
+    std::string path = fs::current_path().string() + "/" + std::string(STR_HTTP_ROOT_PATH) + request.m_path;
+    LOGI(path);
+    if (!fs::exists(path) || !fs::is_directory(path))
     {
         LOGE("Path is not found");
-        path = std::string(STR_HTTP_ROOT_PATH) + std::string("/404");
+        path = fs::current_path().string() + "/" + std::string(STR_HTTP_ROOT_PATH) + std::string("/404");
         response.set_status(HTTP_404);
     }
     else
@@ -25,7 +35,7 @@ HTTPResponse HTTPRouter::route(const HTTPRequest& request)
     }
 
 
-    std::string filename = path + STR_HTTP_MAIN_PAGE;
+    std::string filename = path + "/" + STR_HTTP_MAIN_PAGE;
     std::fstream file(filename, std::ios::in);
     if (file.is_open())
     {
