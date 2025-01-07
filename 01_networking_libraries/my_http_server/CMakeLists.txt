@@ -25,3 +25,7 @@ add_custom_target(deploy_http_root ALL
 )
 
 add_dependencies(HTTPServer deploy_http_root)
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.1)
+    target_link_libraries(HTTPServer PRIVATE stdc++fs)
+endif()
