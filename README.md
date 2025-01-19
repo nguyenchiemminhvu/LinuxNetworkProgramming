@@ -2571,3 +2571,5 @@ https://documentation.softwareag.com/adabas/wcp632mfr/wtc/wtc_prot.htm
 https://www.geeksforgeeks.org/little-and-big-endian-mystery/
 
 https://github.com/openssl/openssl/tree/691064c47fd6a7d11189df00a0d1b94d8051cbe0/demos/ssl
+
+https://beej.us/guide/bgnet/html/
