@@ -64,6 +64,8 @@
 
 # Introduction
 
+In my opinion, Linux network programming, especially socket programming, isn’t that difficult. However, learning this topic on your own can be challenging because many online resources are unclear, and sample codes often only cover the basics. You might find yourself unsure of what to do next. That's why I created this tutorial. It aims to give you clear guidelines and plenty of examples to help you understand better.
+
 Linux network programming deals with the interaction between processes using network interfaces. It enables interprocess communication (```IPC```), allowing data exchange between processes running on the same machine or on different machines connected over a network.
 
 The foundation of Linux network programming lies in the use of sockets, a universal API designed for interprocess communication. Sockets originated from BSD Unix in 1983 and were later standardized by POSIX, making them a cornerstone of modern networking.
